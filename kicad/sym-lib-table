@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "strain-gauge")(type "KiCad")(uri "${KIPRJMOD}/strain-gauge.kicad_sym")(options "")(descr ""))
+)
