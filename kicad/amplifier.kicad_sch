@@ -1040,8 +1040,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100R"
-			(at 123.19 105.156 0)
+		(property "Value" "100"
+			(at 124.46 105.156 0)
 			(effects
 				(font
 					(size 1.27 1.27)
