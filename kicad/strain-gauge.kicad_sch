@@ -763,7 +763,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "04905afd-bf89-46c6-9775-f8881e314811")
-		(property "Reference" "#PWR013"
+		(property "Reference" "#PWR03"
 			(at 161.29 125.73 0)
 			(effects
 				(font
@@ -813,7 +813,7 @@
 		(instances
 			(project ""
 				(path "/cbc99ef0-5fa7-4678-bd4c-c2c08fe588b6"
-					(reference "#PWR013")
+					(reference "#PWR03")
 					(unit 1)
 				)
 			)
@@ -829,7 +829,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "838f62f4-5e9c-4cee-a589-178a06d878b5")
-		(property "Reference" "#PWR012"
+		(property "Reference" "#PWR02"
 			(at 154.94 125.73 0)
 			(effects
 				(font
@@ -879,7 +879,7 @@
 		(instances
 			(project ""
 				(path "/cbc99ef0-5fa7-4678-bd4c-c2c08fe588b6"
-					(reference "#PWR012")
+					(reference "#PWR02")
 					(unit 1)
 				)
 			)
@@ -895,7 +895,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "cd672641-feb5-4cc0-8178-c6c98f0a4c58")
-		(property "Reference" "#PWR011"
+		(property "Reference" "#PWR01"
 			(at 148.59 115.57 0)
 			(effects
 				(font
@@ -945,7 +945,7 @@
 		(instances
 			(project ""
 				(path "/cbc99ef0-5fa7-4678-bd4c-c2c08fe588b6"
-					(reference "#PWR011")
+					(reference "#PWR01")
 					(unit 1)
 				)
 			)
@@ -985,16 +985,6 @@
 				(justify left top)
 			)
 		)
-		(pin "GND" bidirectional
-			(at 148.59 127 90)
-			(uuid "03ab3d33-c081-4bdd-b43b-a9f420968ad9")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
 		(pin "A_IN_P2" bidirectional
 			(at 107.95 127 90)
 			(uuid "b88dd802-0012-4d44-a5c4-04c56334f693")
@@ -1008,16 +998,6 @@
 		(pin "A_IN_N2" bidirectional
 			(at 110.49 127 90)
 			(uuid "bfb0b00e-7fb3-4620-8732-cae147e9117e")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(pin "3.3V" bidirectional
-			(at 154.94 127 90)
-			(uuid "322bc6b8-d295-457a-bc8a-5015523781fd")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -1085,16 +1065,6 @@
 				(justify right)
 			)
 		)
-		(pin "5V" bidirectional
-			(at 161.29 127 90)
-			(uuid "50094869-0dc5-4a6c-9f5e-ae5d7ec51968")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
 		(pin "A_IN_N1" bidirectional
 			(at 104.14 127 90)
 			(uuid "482eb4da-ce86-4b3d-a6c0-b71acaf7970c")
@@ -1138,6 +1108,36 @@
 		(pin "~{ADC_RST}" bidirectional
 			(at 212.09 127 90)
 			(uuid "3428311c-f658-4135-9840-4c0f1ea00ce4")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "GND" output
+			(at 148.59 127 90)
+			(uuid "3a19d8b1-d73b-44fa-bee7-baf62f7eddb8")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "3.3V" output
+			(at 154.94 127 90)
+			(uuid "2b491531-2aaa-4c70-96ee-c03732268425")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "5V" output
+			(at 161.29 127 90)
+			(uuid "ee63ecba-701f-4753-a9f9-9c079fc42159")
 			(effects
 				(font
 					(size 1.27 1.27)

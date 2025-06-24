@@ -501,7 +501,7 @@
 		(uuid "3a8db8b2-eb98-4d6c-8793-addd386a4f74")
 	)
 	(hierarchical_label "5V"
-		(shape bidirectional)
+		(shape output)
 		(at 180.34 96.52 0)
 		(effects
 			(font
@@ -545,7 +545,7 @@
 		(uuid "837ec3ce-73e0-4e76-ba8e-3cb12e7974f0")
 	)
 	(hierarchical_label "GND"
-		(shape bidirectional)
+		(shape output)
 		(at 180.34 91.44 0)
 		(effects
 			(font
@@ -622,7 +622,7 @@
 		(uuid "e4a22aac-9c3b-4e95-9ecc-0684075cf14a")
 	)
 	(hierarchical_label "3.3V"
-		(shape bidirectional)
+		(shape output)
 		(at 180.34 93.98 0)
 		(effects
 			(font
@@ -659,7 +659,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Connector_PinHeader_1.00mm:PinHeader_1x09_P1.00mm_Horizontal"
 			(at 154.94 104.14 0)
 			(effects
 				(font
@@ -748,7 +748,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Connector_PinHeader_1.00mm:PinHeader_1x09_P1.00mm_Horizontal"
 			(at 124.46 104.14 0)
 			(effects
 				(font
