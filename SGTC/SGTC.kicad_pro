@@ -37,9 +37,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.8,
-          "height": 1.27,
-          "width": 2.54
+          "drill": 0.0,
+          "height": 0.2,
+          "width": 0.2
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -48,7 +48,7 @@
         "silk_text_thickness": 0.1,
         "silk_text_upright": false,
         "zones": {
-          "min_clearance": 0.2
+          "min_clearance": 0.5
         }
       },
       "diff_pair_dimensions": [
@@ -187,7 +187,8 @@
         }
       ],
       "track_widths": [
-        0.0
+        0.0,
+        0.1
       ],
       "tuning_pattern_settings": {
         "diff_pair_defaults": {
@@ -463,7 +464,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "strain-gauge.kicad_pro",
+    "filename": "SGTC.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -485,6 +486,20 @@
         "via_diameter": 0.6,
         "via_drill": 0.3,
         "wire_width": 6
+      },
+      {
+        "name": "5V",
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "priority": 0,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.1
+      },
+      {
+        "name": "GND",
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "priority": 1,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.1
       }
     ],
     "meta": {
@@ -492,14 +507,27 @@
     },
     "net_colors": null,
     "netclass_assignments": null,
-    "netclass_patterns": []
+    "netclass_patterns": [
+      {
+        "netclass": "Default",
+        "pattern": "GND"
+      },
+      {
+        "netclass": "Default",
+        "pattern": "A_IN_P"
+      },
+      {
+        "netclass": "5V",
+        "pattern": "+5V"
+      }
+    ]
   },
   "pcbnew": {
     "last_paths": {
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "gerbers/",
+      "plot": "",
       "pos_files": "",
       "specctra_dsn": "",
       "step": "",
@@ -623,28 +651,16 @@
   },
   "sheets": [
     [
-      "cbc99ef0-5fa7-4678-bd4c-c2c08fe588b6",
+      "e6511e2b-333c-4d1b-a7c0-7b8b4721c5e4",
       "Root"
     ],
     [
-      "a931b1b9-f428-459e-895b-593f25a56a4b",
-      "ADC"
+      "7a435dc3-c3c2-4466-8421-4dd50ecf7282",
+      "StrainGauge1"
     ],
     [
-      "7b97208f-f254-4e0a-b985-f6e18067c277",
-      "Multiplexer"
-    ],
-    [
-      "b13d2ad6-b452-4e9e-8747-b60d4710f9cf",
-      "Counter"
-    ],
-    [
-      "6c2d24b3-87c3-411d-971e-8f153f49b6c8",
-      "Pins"
-    ],
-    [
-      "ed6585df-9345-4865-aec4-1580b6dfd454",
-      "Amplifier"
+      "9fdfd950-a4bb-4e4d-a44f-1d4db2577bce",
+      "StrainGauge2"
     ]
   ],
   "text_variables": {}
