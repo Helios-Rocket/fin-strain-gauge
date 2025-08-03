@@ -637,16 +637,8 @@
   },
   "sheets": [
     [
-      "e6511e2b-333c-4d1b-a7c0-7b8b4721c5e4",
+      "cbc99ef0-5fa7-4678-bd4c-c2c08fe588b6",
       "Root"
-    ],
-    [
-      "7a435dc3-c3c2-4466-8421-4dd50ecf7282",
-      "StrainGauge1"
-    ],
-    [
-      "9fdfd950-a4bb-4e4d-a44f-1d4db2577bce",
-      "StrainGauge2"
     ]
   ],
   "text_variables": {}
