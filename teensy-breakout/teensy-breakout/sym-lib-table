@@ -2,5 +2,4 @@
   (version 7)
   (lib (name "breakout_lib")(type "KiCad")(uri "${KIPRJMOD}/breakout_lib.kicad_sym")(options "")(descr ""))
   (lib (name "teensy")(type "Legacy")(uri "${KIPRJMOD}/teensy.lib")(options "")(descr ""))
-  (lib (name "MicroMod")(type "EAGLE")(uri "/home/cbscott/SparkFun-Eagle-Libraries/SparkFun-MicroMod.lbr")(options "")(descr ""))
 )
