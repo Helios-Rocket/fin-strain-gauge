@@ -11,7 +11,8 @@ build:
     cargo objcopy --release -- -O ihex {{OUTPUT_HEX_FILE}}
 
 upload: build
-    teensy-loader-cli -w -v --mcu=imxrt1062 {{OUTPUT_HEX_FILE}}
+    teensy-loader-cli -w -v --mcu=TEENSY41 {{OUTPUT_HEX_FILE}} 
+    # FOR NIX: teensy-loader-cli -w -v --mcu=imxrt1062 {{OUTPUT_HEX_FILE}}
 
 monitor:
     minicom -D {{PORT}} && reset
