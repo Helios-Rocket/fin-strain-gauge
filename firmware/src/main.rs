@@ -12,9 +12,10 @@ use teensy4_panic as _;
 mod app {
     use bsp::board;
 
+    use cortex_m::prelude::{_embedded_hal_blocking_spi_Transfer, _embedded_hal_blocking_spi_Write};
     use teensy4_bsp::{
         self as bsp,
-        hal::{self, gpio::Input, iomuxc::{self}, lpspi::Lpspi, flexpwm},
+        hal::{self, ccm::{analog::pll2, clock_gate, lpspi_clk}, flexpwm, gpio::{self, Input}, iomuxc::{self, flexpwm::Output}, lpspi::{Lpspi, SamplePoint, MODE_1}},
         pins::{self, Config, PullKeeper},
         ral::{self, modify_reg, read_reg, write_reg},
     };
@@ -25,6 +26,8 @@ mod app {
         systick::{Systick, *},
         Monotonic,
     };
+
+    use embedded_hal::spi::{SpiDevice}; 
 
     use crate::{/*fin::Fins,*/ sd::SdCard};
 
@@ -45,12 +48,14 @@ mod app {
         //tmr: ral::tmr::Instance<3>,
 
         sd: SdCard,
+        cs: gpio::Output<pins::t41::P15>,
     }
 
     #[init]
     fn init(cx: init::Context) -> (Shared, Local) {
         let board::Resources {
             mut gpio1,
+            mut gpio2,
             mut pins,
             lpspi4,
             usb,
@@ -64,11 +69,30 @@ mod app {
         // let led = board::led(&mut gpio2, pins.p13);
 
         // let fins = Fins::new(&mut pins, lpspi4, &mut gpio1);
-        iomuxc::lpspi::prepare(&mut pins.p11);
-        iomuxc::lpspi::prepare(&mut pins.p12);
-        iomuxc::lpspi::prepare(&mut pins.p13);
-        let spi = hal::lpspi::Lpspi::without_pins(lpspi4);
-        let cs = gpio1.output(pins.p15);
+        iomuxc::lpspi::prepare(&mut pins.p11); // DIN (MOSI)
+        iomuxc::lpspi::prepare(&mut pins.p12); // DOUT (MISO)
+        iomuxc::lpspi::prepare(&mut pins.p13); // SCK
+        let mut spi = hal::lpspi::Lpspi::without_pins(lpspi4);
+
+        const LPSPI_CLK_DIVIDER: u32 = 8;
+        const LPSPI_CLK_HZ: u32 = pll2::FREQUENCY / LPSPI_CLK_DIVIDER;
+
+        let mut ccm = unsafe { ral::ccm::CCM::instance() };
+        clock_gate::lpspi::<2>().set(&mut ccm, clock_gate::OFF);
+        lpspi_clk::set_selection(&mut ccm, lpspi_clk::Selection::Pll2);
+        lpspi_clk::set_divider(&mut ccm, LPSPI_CLK_DIVIDER);
+
+        clock_gate::lpspi::<2>().set(&mut ccm, clock_gate::ON);
+        
+        spi.disabled(|spi|{
+            spi.set_clock_hz(LPSPI_CLK_HZ, 1_000_000);
+            spi.set_sample_point(SamplePoint::Edge);
+        }); 
+        spi.set_mode(MODE_1);
+
+        let cs = gpio1.output(pins.p15); // CS 
+        let rst = gpio2.output(pins.p10); //RST
+        rst.set();
 
         // FLEX PWM IMPLEMENTATION
         let mut sm2 = flexpwm4.1.2; 
@@ -82,7 +106,7 @@ mod app {
         sm2.set_load_mode(flexpwm::LoadMode::reload_full());
         sm2.set_load_frequency(1);
 
-        flexpwm::Output::new_a(pins.p2); // Figure out what this does 
+        flexpwm::Output::new_a(pins.p2); // CLK
 
         sm2.set_initial_count(&pwm, 0);
         sm2.set_value(flexpwm::FULL_RELOAD_VALUE_REGISTER, 38);
@@ -95,7 +119,7 @@ mod app {
         sm2.set_output_enable(&mut pwm, flexpwm::Channel::A, true);
         sm2.set_running(&mut pwm, true);
         
-
+        // QUAD TIMER IMPLEMENTATION 
         // iomuxc::alternate(&mut pins.p14, 1);
         // iomuxc::clear_sion(&mut pins.p14);
         // iomuxc::configure(
@@ -132,6 +156,7 @@ mod app {
 
         // blink::spawn().unwrap();
         output::spawn().unwrap();
+        read_spi::spawn().unwrap(); 
         (
             Shared {},
             Local {
@@ -139,7 +164,7 @@ mod app {
                 poller,
                 sd,
                 spi,
-                // cs,
+                cs,
                 //tmr,
                 start_pin,
             },
@@ -193,4 +218,40 @@ mod app {
 
     // #[task(binds = USDHC1, shared = [sd])]
     // fn handle_sd_ints(cx: handle_sd_ints::Context) {}
+    #[task(local = [spi, cs])]
+    async fn read_spi(mut cx: read_spi::Context){
+        loop{
+            cx.local.cs.clear(); 
+            log::info!("{:?}", convert_adc2temp(read_registers(&mut cx.local.spi, 0)[0])); 
+            cx.local.cs.set(); 
+            Systick::delay(1_u32.secs()).await; 
+        }
+    }
+
+
+    fn read_registers(spi:&mut Lpspi<(), 4>, start_addr: u8)->[u32; 3]{
+        let start_addr: u32 = (start_addr as u32) & 0x3F; 
+        let word: u32 = 0;
+        log::info!("{:#018b}", word);  
+        spi.transfer(&mut word.to_be_bytes()[0..=2]).unwrap(); 
+        let mut dummy = [0_u8;12];
+        let output = spi.transfer(&mut dummy).unwrap(); 
+        [
+            (output[3] as u32) << 16 | (output[4] as u32) << 8 | (output[5] as u32), 
+            (output[6] as u32) << 16 | (output[7] as u32) << 8 | (output[8] as u32), 
+            (output[9] as u32) << 16 | (output[10] as u32) << 8 | (output[11] as u32), 
+
+        ]
+    
+    }
+
+    fn convert_adc2temp(input:u32)->f32{
+        let ref_voltage = (1.2/(((1_u32<<24) as f32) - 1.0)) * input as f32; 
+        (ref_voltage - 500.0)*100.0 
+    }
+
+    fn write_registers(){}
+
 }
+
+
