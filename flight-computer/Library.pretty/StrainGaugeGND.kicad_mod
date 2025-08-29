@@ -1,0 +1,99 @@
+(footprint "StrainGaugeGND"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 4.4 0.8 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "d76f53d3-f0be-4eb0-aa96-8f4fd1abfb82")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "StrainGaugeGND"
+		(at 0.3 2.2 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "880120f2-50f4-4984-a540-974fcb4e801d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "4281cc5d-032a-4073-9d8a-e8a60c35a64c")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "ca1c54be-69e7-4cae-a648-4918de6b0888")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr exclude_from_pos_files exclude_from_bom allow_missing_courtyard)
+	(fp_text user "GND"
+		(at -4.8 -4.3 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "3b4fb61c-34fa-4106-bb4f-e692b35fe579")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom)
+		)
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 3.7 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "1dd30800-6ea4-4d2b-85e2-a8766ebf7152")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+		(at 0 -2)
+		(size 1 0.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(thermal_bridge_angle 45)
+		(uuid "2f905d8e-f2f2-4c63-9755-237f13cf9659")
+	)
+	(pad "2" smd roundrect
+		(at 0 0)
+		(size 1 0.5)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.15)
+		(thermal_bridge_angle 45)
+		(uuid "79980d5b-d5eb-4701-8136-bfccb2def8e5")
+	)
+	(embedded_fonts no)
+)
