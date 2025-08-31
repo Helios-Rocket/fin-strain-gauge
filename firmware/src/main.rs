@@ -131,37 +131,18 @@ mod app {
         cx.local.poller.poll();
     }
 
-    // #[task(local = [spi, cs])]
-    // async fn read_spi(mut cx: read_spi::Context) {
-    //     loop {
-    //         cx.local.cs.clear();
-    //         log::info!(
-    //             "{:?}",
-    //             convert_adc2temp(read_registers(&mut cx.local.spi, 0)[0])
-    //         );
-    //         cx.local.cs.set();
-    //         Systick::delay(1_u32.secs()).await;
-    //     }
-    // }
+    #[task(local = [fins])]
+    // Make this a function within fins 
+    async fn read_fin_spi(mut cx: read_fin_spi::Context) {
+        loop {
+            cx.local.fins.cs1.clear();
+            log::info!(
+                "{:?}",
+                fin::convert_adc2temp(fin::read_registers(&mut cx.local.fins.spi, 0)[0])
+            );
+            cx.local.cs1.set();
+            Systick::delay(1_u32.secs()).await;
+        }
+    }
 
-    // fn read_registers(spi: &mut Lpspi<(), 4>, start_addr: u8) -> [u32; 3] {
-    //     let start_addr: u32 = (start_addr as u32) & 0x3F;
-    //     let word: u32 = 0;
-    //     log::info!("{:#018b}", word);
-    //     spi.transfer(&mut word.to_be_bytes()[0..=2]).unwrap();
-    //     let mut dummy = [0_u8; 12];
-    //     let output = spi.transfer(&mut dummy).unwrap();
-    //     [
-    //         (output[3] as u32) << 16 | (output[4] as u32) << 8 | (output[5] as u32),
-    //         (output[6] as u32) << 16 | (output[7] as u32) << 8 | (output[8] as u32),
-    //         (output[9] as u32) << 16 | (output[10] as u32) << 8 | (output[11] as u32),
-    //     ]
-    // }
-
-    // fn convert_adc2temp(input: u32) -> f32 {
-    //     let ref_voltage = (1.2 / (((1_u32 << 24) as f32) - 1.0)) * input as f32;
-    //     (ref_voltage - 500.0) * 100.0
-    // }
-
-    // fn write_registers() {}
 }
