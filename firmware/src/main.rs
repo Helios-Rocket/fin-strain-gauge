@@ -71,8 +71,8 @@ mod app {
 
         let sd = unsafe { SdCard::new(&mut pins, &ccm, Systick::now) };
 
-        let fins = Fins::new(
-            &mut fin::Pins {
+        let mut fins = Fins::new(
+            fin::Pins {
                 miso: pins.p12,
                 mosi: pins.p11,
                 sck: pins.p13,
@@ -99,9 +99,20 @@ mod app {
         );
         let start_pin = gpio1.input(pins.p23);
 
+        fins.disable_adc_channels();
+        // let reg = fins.read_register(fin::registers::mode::ADDR);
+        // fins.write_register(
+        //     fin::registers::mode::ADDR,
+        //     (reg & !fin::registers::mode::wlength::MASK)
+        //         | fin::registers::mode::wlength::LENGTH_32BITS,
+        // );
+        fins.write_register(0xe, 0b10);
+        fins.write_register(0x13, 0b11);
+        fins.enable_adc_channels();
+
         // blink::spawn().unwrap();
         output::spawn().unwrap();
-        // read_spi::spawn().unwrap();
+        read_fin_spi::spawn().unwrap();
         (
             Shared {},
             Local {
@@ -132,17 +143,20 @@ mod app {
     }
 
     #[task(local = [fins])]
-    // Make this a function within fins 
-    async fn read_fin_spi(mut cx: read_fin_spi::Context) {
+    // Make this a function within fins
+    async fn read_fin_spi(cx: read_fin_spi::Context) {
         loop {
-            cx.local.fins.cs1.clear();
-            log::info!(
-                "{:?}",
-                fin::convert_adc2temp(fin::read_registers(&mut cx.local.fins.spi, 0)[0])
-            );
-            cx.local.cs1.set();
-            Systick::delay(1_u32.secs()).await;
+            cx.local.fins.read_adc_data().into_iter().for_each(|t| {
+                log::info!(
+                    "{} (volts: {}) [raw: {}]",
+                    fin::convert_volts2temp(fin::convert_adc2volts(t)),
+                    fin::convert_adc2volts(t),
+                    t,
+                )
+            });
+            // let data = cx.local.fins.read_register(0);
+            // log::info!("{:016b}", data);
+            Systick::delay(500_u32.millis()).await;
         }
     }
-
 }
