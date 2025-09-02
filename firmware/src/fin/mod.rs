@@ -215,5 +215,5 @@ pub fn convert_volts2temp(input: f64) -> f64 {
 }
 
 pub fn convert_adc2volts(code: i32) -> f64 {
-    (code as f64) * (2.4 / (2_u32 << 24) as f64) * 2.0
+    (code as f64) * (2.4 / (1_u32 << 24) as f64) * 2.0
 }

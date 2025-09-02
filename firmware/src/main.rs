@@ -99,16 +99,16 @@ mod app {
         );
         let start_pin = gpio1.input(pins.p23);
 
-        fins.disable_adc_channels();
-        // let reg = fins.read_register(fin::registers::mode::ADDR);
-        // fins.write_register(
-        //     fin::registers::mode::ADDR,
-        //     (reg & !fin::registers::mode::wlength::MASK)
-        //         | fin::registers::mode::wlength::LENGTH_32BITS,
-        // );
-        fins.write_register(0xe, 0b10);
-        fins.write_register(0x13, 0b11);
-        fins.enable_adc_channels();
+        // fins.disable_adc_channels();
+        // // let reg = fins.read_register(fin::registers::mode::ADDR);
+        // // fins.write_register(
+        // //     fin::registers::mode::ADDR,
+        // //     (reg & !fin::registers::mode::wlength::MASK)
+        // //         | fin::registers::mode::wlength::LENGTH_32BITS,
+        // // );
+        // fins.write_register(0xe, 0b10);
+        // fins.write_register(0x13, 0b11);
+        // fins.enable_adc_channels();
 
         // blink::spawn().unwrap();
         output::spawn().unwrap();
