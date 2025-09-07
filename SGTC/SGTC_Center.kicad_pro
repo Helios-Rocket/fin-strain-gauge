@@ -513,7 +513,7 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "gerbers/",
+      "plot": "NewCoreGerbers/",
       "pos_files": "",
       "specctra_dsn": "",
       "step": "SGTC_Center.step",
