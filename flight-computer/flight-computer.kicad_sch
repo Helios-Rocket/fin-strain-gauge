@@ -7844,7 +7844,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
 			(at 207.01 55.88 0)
 			(effects
 				(font
@@ -8883,7 +8883,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
 			(at 142.24 49.53 0)
 			(effects
 				(font
@@ -9149,7 +9149,7 @@
 				)
 			)
 		)
-		(property "Value" "8.2uH"
+		(property "Value" "6.8uH"
 			(at 74.93 134.62 90)
 			(effects
 				(font
@@ -9157,7 +9157,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_SMD:L_Coilcraft_XAL5050-XXX"
+		(property "Footprint" "Library:IND_EXLA1V0505-220-R_EAT"
 			(at 74.93 137.16 0)
 			(effects
 				(font
