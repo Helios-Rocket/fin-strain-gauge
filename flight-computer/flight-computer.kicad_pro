@@ -48,11 +48,38 @@
         "silk_text_thickness": 0.1,
         "silk_text_upright": false,
         "zones": {
-          "min_clearance": 0.5
+          "min_clearance": 0.25
         }
       },
-      "diff_pair_dimensions": [],
-      "drc_exclusions": [],
+      "diff_pair_dimensions": [
+        {
+          "gap": 0.0,
+          "via_gap": 0.0,
+          "width": 0.0
+        }
+      ],
+      "drc_exclusions": [
+        [
+          "clearance|153067600|97790000|d736043f-7dfd-45a3-8aef-06192c0109fb|f6de4740-ed4a-4f74-a119-2a7f162b4f99",
+          ""
+        ],
+        [
+          "hole_clearance|141611895|122991555|a766b1e2-0620-4f29-9954-b84cf19acd79|2f57005b-1a62-4ab7-8d2f-bb219ac5d736",
+          ""
+        ],
+        [
+          "hole_clearance|141611895|122991555|a766b1e2-0620-4f29-9954-b84cf19acd79|4d907fb3-247d-4a5f-ad28-4c8714052c26",
+          ""
+        ],
+        [
+          "hole_clearance|147711895|122991555|5c9743cf-10e7-450f-8c28-cdd28d1a59c3|1edc4416-cf4d-472b-8a33-9eb84376f200",
+          ""
+        ],
+        [
+          "hole_clearance|147711895|122991555|5c9743cf-10e7-450f-8c28-cdd28d1a59c3|24814050-4d0d-456a-a77a-35686519acc1",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
@@ -180,7 +207,9 @@
           "td_width_to_size_filter_ratio": 0.9
         }
       ],
-      "track_widths": [],
+      "track_widths": [
+        0.0
+      ],
       "tuning_pattern_settings": {
         "diff_pair_defaults": {
           "corner_radius_percentage": 80,
@@ -207,7 +236,12 @@
           "spacing": 0.6
         }
       },
-      "via_dimensions": [],
+      "via_dimensions": [
+        {
+          "diameter": 0.0,
+          "drill": 0.0
+        }
+      ],
       "zones_allow_external_fillets": false
     },
     "ipc2581": {
@@ -457,7 +491,7 @@
     "classes": [
       {
         "bus_width": 12,
-        "clearance": 0.2,
+        "clearance": 0.1,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -470,7 +504,7 @@
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.2,
         "via_diameter": 0.6,
-        "via_drill": 0.3,
+        "via_drill": 0.2,
         "wire_width": 6
       }
     ],
@@ -486,10 +520,10 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "",
+      "plot": "gerbers/",
       "pos_files": "",
       "specctra_dsn": "",
-      "step": "",
+      "step": "flight-computer.step",
       "svg": "",
       "vrml": ""
     },
