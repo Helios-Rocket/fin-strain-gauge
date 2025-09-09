@@ -9789,7 +9789,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "100nF"
 			(at 58.42 50.8062 0)
 			(effects
 				(font
@@ -10301,7 +10301,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "100k"
 			(at 57.404 40.64 0)
 			(effects
 				(font
@@ -10647,7 +10647,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Library:FSM2JMTR"
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 49.53 41.91 0)
 			(effects
 				(font
@@ -11177,7 +11177,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Library:FSM2JMTR"
+		(property "Footprint" "Library:SW_FSM2JMTR_TEC"
 			(at 49.53 50.8 0)
 			(effects
 				(font
