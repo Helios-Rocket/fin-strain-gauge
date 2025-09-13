@@ -114,11 +114,11 @@ impl SdCard {
 
         // This is actually the card address shifted into the first two MSB, since it is always used there as a command arg
         self.card_addr = Some(resp[0] & (0xffff << 16));
-        log::info!("{:#018b}", self.card_addr.unwrap());
+        // log::info!("{:#018b}", self.card_addr.unwrap());
 
         self.send_acmd(13, 0, ResponseConfig::R1)?;
         let resp = self.read_response()?;
-        log::info!("{:#034b}", resp[0]);
+        // log::info!("{:#034b}", resp[0]);
 
         Ok(())
     }

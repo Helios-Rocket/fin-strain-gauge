@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "arrform"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7cf566ecc5c9d82b973e81d30babf6583c9b497f86295c952d538c3254ef4e6"
+
+[[package]]
 name = "atomic-polyfill"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -25,12 +31,6 @@ name = "bare-metal"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
-
-[[package]]
-name = "bbqueue"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd3baa8859d1a4c7411039a75c0599a4640ef1c9a8fc811e4325b00e6cfe0a55"
 
 [[package]]
 name = "bitfield"
@@ -127,15 +127,16 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 name = "firmware"
 version = "0.1.0"
 dependencies = [
+ "arrform",
  "cortex-m",
  "embedded-error",
  "embedded-hal 1.0.0",
- "imxrt-log",
- "log",
  "rtic",
  "rtic-monotonics",
  "teensy4-bsp",
  "teensy4-panic",
+ "usb-device",
+ "usbd-serial",
 ]
 
 [[package]]
@@ -275,20 +276,6 @@ name = "imxrt-iomuxc"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "074cb47c36b343ad554356e74ceb9bd26bb91dd39340bee075ed85f56dfe207b"
-
-[[package]]
-name = "imxrt-log"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f9711a9eaeb920ab0f7df6b1692251394ddea5e4af88cc4762d51259321749e"
-dependencies = [
- "bbqueue",
- "critical-section",
- "imxrt-usbd",
- "log",
- "usb-device",
- "usbd-serial",
-]
 
 [[package]]
 name = "imxrt-ral"

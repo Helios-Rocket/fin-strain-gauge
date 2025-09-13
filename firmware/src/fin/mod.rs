@@ -13,7 +13,9 @@ use teensy4_bsp::{
 };
 mod adc_consts;
 
-pub(crate) use adc_consts::*;
+use adc_consts::*;
+
+pub use adc_consts::{registers::gain::Gain, AdcChannel};
 
 pub struct Pins<SpiMiso, SpiMosi, SpiSck, SpiCs1, Clk, Rst> {
     pub miso: SpiMiso,
@@ -97,27 +99,59 @@ where
 
         pins.rst.set(); // Set the (active low) RST pin for the ADC to pull it out of reset and start it running
 
-        Self {
+        let mut fin = Self {
             spi,
             pwm,
             pwm_submod,
             pins,
+        };
+
+        fin.set_gain(AdcChannel::CH2, Gain::Times4);
+
+        fin.write_register(0x8, 0b0100);
+        fin.write_register(0x13, 0b100);
+
+        fin
+    }
+
+    pub fn set_gain(self: &mut Self, channel: AdcChannel, gain: Gain) {
+        use registers::*;
+
+        let reg = self.read_register(gain::ADDR);
+        self.write_register(
+            gain::ADDR,
+            reg | match channel {
+                AdcChannel::CH0 => gain::ch0::set(gain),
+                AdcChannel::CH1 => gain::ch1::set(gain),
+                AdcChannel::CH2 => gain::ch2::set(gain),
+            },
+        );
+    }
+
+    pub fn get_gain(self: &mut Self, channel: AdcChannel) -> Gain {
+        use registers::*;
+        let reg = self.read_register(gain::ADDR);
+
+        match channel {
+            AdcChannel::CH0 => gain::ch0::get(reg),
+            AdcChannel::CH1 => gain::ch1::get(reg),
+            AdcChannel::CH2 => gain::ch2::get(reg),
         }
     }
 
     pub fn disable_adc_channels(self: &mut Self) {
-        use adc_consts::registers::*;
+        use registers::*;
         let reg = self.read_register(clock::ADDR);
         self.write_register(clock::ADDR, reg & clock::DISABLE_ALL_CHANNEL_MASK);
     }
 
     pub fn enable_adc_channels(self: &mut Self) {
-        use adc_consts::registers::*;
+        use registers::*;
         let reg = self.read_register(clock::ADDR);
         self.write_register(clock::ADDR, reg | clock::ENABLE_ALL_CHANNEL_MASK);
     }
 
-    pub fn read_register(self: &mut Self, addr: u8) -> u16 {
+    fn read_register(self: &mut Self, addr: u8) -> u16 {
         let addr: u32 = (addr as u32) & 0x3F;
         let cmd: u32 = (0b101_u32 << 13 | addr << 7) << 8;
         let transaction = Transaction::new(24).unwrap();
@@ -167,10 +201,10 @@ where
             self.spi.read_data().unwrap().to_be_bytes(),
         ];
 
-        log::info!(
-            "Status: {:#018b}",
-            (output[0][1] as u32) << 8 | (output[0][2] as u32)
-        );
+        // log::info!(
+        //     "Status: {:#018b}",
+        //     (output[0][1] as u32) << 8 | (output[0][2] as u32)
+        // );
 
         [
             (((output[1][1] as i32) << 24
@@ -188,7 +222,7 @@ where
         ]
     }
 
-    pub fn write_register(self: &mut Self, start_addr: u8, data: u16) {
+    fn write_register(self: &mut Self, start_addr: u8, data: u16) {
         let start_addr: u32 = (start_addr as u32) & 0x3f;
         let cmd = (0b011_u32 << 13 | start_addr << 7) << 8;
         let transaction = Transaction::new(24).unwrap();
@@ -215,5 +249,5 @@ pub fn convert_volts2temp(input: f64) -> f64 {
 }
 
 pub fn convert_adc2volts(code: i32) -> f64 {
-    (code as f64) * (2.4 / (1_u32 << 24) as f64) * 2.0
+    (code as f64) * (2.4 / (1_u32 << 24) as f64)
 }
