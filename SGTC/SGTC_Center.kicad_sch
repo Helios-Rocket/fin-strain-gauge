@@ -5082,7 +5082,7 @@
 				)
 			)
 		)
-		(property "Value" "5 nF"
+		(property "Value" "10 nF"
 			(at 76.454 82.296 90)
 			(effects
 				(font
@@ -5353,7 +5353,7 @@
 				)
 			)
 		)
-		(property "Value" "5 nF"
+		(property "Value" "10 nF"
 			(at 54.864 82.296 90)
 			(effects
 				(font
@@ -5896,7 +5896,7 @@
 				)
 			)
 		)
-		(property "Value" "5 k"
+		(property "Value" "2.5 k"
 			(at 63.5 90.17 90)
 			(effects
 				(font
@@ -6102,7 +6102,7 @@
 				)
 			)
 		)
-		(property "Value" "5 k"
+		(property "Value" "2.5 k"
 			(at 56.896 90.17 90)
 			(effects
 				(font
@@ -6170,7 +6170,7 @@
 				)
 			)
 		)
-		(property "Value" "5 k"
+		(property "Value" "2.5 k"
 			(at 41.91 90.17 90)
 			(effects
 				(font
@@ -6925,7 +6925,7 @@
 				)
 			)
 		)
-		(property "Value" "5 k"
+		(property "Value" "2.5 k"
 			(at 78.486 90.17 90)
 			(effects
 				(font
