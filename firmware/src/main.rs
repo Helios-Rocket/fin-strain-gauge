@@ -61,9 +61,9 @@ mod app {
                 pins::t41::P12,
                 pins::t41::P11,
                 pins::t41::P13,
-                pins::t41::P15,
+                pins::t41::P16,
                 pins::t41::P2,
-                pins::t41::P10,
+                pins::t41::P9,
             >,
             4, // lpspi4
             4, // flexpwm4
@@ -91,20 +91,6 @@ mod app {
         } = board::t41(cx.device);
 
         let sd = unsafe { SdCard::new(&mut pins, &ccm, Systick::now) };
-
-        let mut fins = Fins::new(
-            fin::Pins {
-                miso: pins.p12,
-                mosi: pins.p11,
-                sck: pins.p13,
-                cs1: gpio1.output(pins.p15),
-                rst: gpio2.output(pins.p10),
-                clk: flexpwm::Output::new_a(pins.p2),
-            },
-            lpspi4,
-            flexpwm4.0,
-            flexpwm4.1 .2,
-        );
 
         // let poller = logging::log::usbd(usb, logging::Interrupts::Enabled).unwrap();
 
@@ -152,6 +138,20 @@ mod app {
         }
 
         usb_device.bus().configure();
+
+        let mut fins = Fins::new(
+            fin::Pins {
+                miso: pins.p12,
+                mosi: pins.p11,
+                sck: pins.p13,
+                cs1: gpio1.output(pins.p16),
+                rst: gpio2.output(pins.p9),
+                clk: flexpwm::Output::new_a(pins.p2),
+            },
+            lpspi4,
+            flexpwm4.0,
+            flexpwm4.1 .2,
+        );
 
         // fins.disable_adc_channels();
         // // let reg = fins.read_register(fin::registers::mode::ADDR);
@@ -231,13 +231,14 @@ mod app {
                 } else {
                 }
             });
-            cx.shared.serial.lock(|serial| {
-                if let Ok(_) = serial.write(
-                    arrform!(128, ">volts:{}\r\n", fin::convert_adc2volts(data[2]),).as_bytes(),
-                ) {
-                } else {
-                }
-            });
+            let volts = fin::convert_adc2volts(data[2]);
+            if volts.abs() < 0.01 {
+                cx.shared.serial.lock(|serial| {
+                    if let Ok(_) = serial.write(arrform!(128, ">volts:{}\r\n", volts,).as_bytes()) {
+                    } else {
+                    }
+                });
+            }
             Systick::delay(20_u32.millis()).await;
         }
     }

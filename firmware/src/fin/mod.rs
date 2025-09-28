@@ -108,8 +108,8 @@ where
 
         fin.set_gain(AdcChannel::CH2, Gain::Times4);
 
-        fin.write_register(0x8, 0b0100);
-        fin.write_register(0x13, 0b100);
+        // fin.write_register(0x8, 0b0100);
+        // fin.write_register(0x13, 0b100);
 
         fin
     }
@@ -200,11 +200,6 @@ where
             self.spi.read_data().unwrap().to_be_bytes(),
             self.spi.read_data().unwrap().to_be_bytes(),
         ];
-
-        // log::info!(
-        //     "Status: {:#018b}",
-        //     (output[0][1] as u32) << 8 | (output[0][2] as u32)
-        // );
 
         [
             (((output[1][1] as i32) << 24
