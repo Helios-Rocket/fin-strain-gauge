@@ -211,33 +211,45 @@ mod app {
     // Make this a function within fins
     async fn read_fin_spi(mut cx: read_fin_spi::Context) {
         loop {
-            let data = cx.local.fins.read_adc_data();
-            cx.shared.serial.lock(|serial| {
-                if let Ok(_) = serial.write(
-                    arrform!(
-                        128,
-                        "{} deg C\r\n",
-                        fin::convert_volts2temp(fin::convert_adc2volts(data[0])),
-                    )
-                    .as_bytes(),
-                ) {
-                } else {
+            match cx.local.fins.read_adc_data() {
+                Ok(data) => {
+                    cx.shared.serial.lock(|serial| {
+                        if let Ok(_) = serial.write(
+                            arrform!(
+                                128,
+                                "{} deg C\r\n",
+                                fin::convert_volts2temp(fin::convert_adc2volts(data[0])),
+                            )
+                            .as_bytes(),
+                        ) {
+                        } else {
+                        }
+                    });
+                    cx.shared.serial.lock(|serial| {
+                        if let Ok(_) = serial.write(
+                            arrform!(128, "{} V\r\n", fin::convert_adc2volts(data[1]),).as_bytes(),
+                        ) {
+                        } else {
+                        }
+                    });
+                    let volts = fin::convert_adc2volts(data[1]);
+                    if volts.abs() < 0.01 {
+                        cx.shared.serial.lock(|serial| {
+                            if let Ok(_) =
+                                serial.write(arrform!(128, ">volts:{}\r\n", volts,).as_bytes())
+                            {
+                            } else {
+                            }
+                        });
+                    }
                 }
-            });
-            cx.shared.serial.lock(|serial| {
-                if let Ok(_) = serial
-                    .write(arrform!(128, "{} V\r\n", fin::convert_adc2volts(data[1]),).as_bytes())
-                {
-                } else {
-                }
-            });
-            let volts = fin::convert_adc2volts(data[2]);
-            if volts.abs() < 0.01 {
-                cx.shared.serial.lock(|serial| {
-                    if let Ok(_) = serial.write(arrform!(128, ">volts:{}\r\n", volts,).as_bytes()) {
+                Err(fin::Error::CRC { computed }) => cx.shared.serial.lock(|serial| {
+                    if let Ok(_) = serial.write(
+                        arrform!(128, "CRC Failed! Got remainder {}\r\n", computed).as_bytes(),
+                    ) {
                     } else {
                     }
-                });
+                }),
             }
             Systick::delay(20_u32.millis()).await;
         }

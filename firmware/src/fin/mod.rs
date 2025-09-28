@@ -1,3 +1,4 @@
+use crc_any::CRC;
 use teensy4_bsp::{
     board,
     hal::{
@@ -17,6 +18,10 @@ use adc_consts::*;
 
 pub use adc_consts::{registers::gain::Gain, AdcChannel};
 
+pub enum Error {
+    CRC { computed: u16 },
+}
+
 pub struct Pins<SpiMiso, SpiMosi, SpiSck, SpiCs1, Clk, Rst> {
     pub miso: SpiMiso,
     pub mosi: SpiMosi,
@@ -31,6 +36,7 @@ pub struct Fins<P, const SPI_N: u8, const PWM_N: u8, const PWM_M: u8> {
     pwm: flexpwm::Pwm<PWM_N>,
     pwm_submod: flexpwm::Submodule<PWM_N, PWM_M>,
     pins: P,
+    crc16: CRC,
 }
 
 impl<
@@ -104,9 +110,10 @@ where
             pwm,
             pwm_submod,
             pins,
+            crc16: CRC::create_crc(0x1021, 16, 0xffff, 0, false),
         };
 
-        fin.set_gain(AdcChannel::CH2, Gain::Times4);
+        fin.set_gain(AdcChannel::CH1, Gain::Times4);
 
         // fin.write_register(0x8, 0b0100);
         // fin.write_register(0x13, 0b100);
@@ -182,7 +189,7 @@ where
         reg_val
     }
 
-    pub fn read_adc_data(self: &mut Self) -> [i32; 3] {
+    pub fn read_adc_data(self: &mut Self) -> Result<[i32; 3], Error> {
         let transaction = Transaction::new(24).unwrap();
         self.pins.cs1.clear();
         for _ in 0..5 {
@@ -201,20 +208,32 @@ where
             self.spi.read_data().unwrap().to_be_bytes(),
         ];
 
-        [
-            (((output[1][1] as i32) << 24
-                | (output[1][2] as i32) << 16
-                | (output[1][3] as i32) << 8)
-                >> 8),
-            (((output[2][1] as i32) << 24
-                | (output[2][2] as i32) << 16
-                | (output[2][3] as i32) << 8)
-                >> 8),
-            (((output[3][1] as i32) << 24
-                | (output[3][2] as i32) << 16
-                | (output[3][3] as i32) << 8)
-                >> 8),
-        ]
+        self.crc16.reset();
+        for word in output {
+            for &byte in word[1..].iter() {
+                self.crc16.digest(&[byte]);
+            }
+        }
+
+        let rem = self.crc16.get_crc() as u16;
+        if rem != 0 {
+            Err(Error::CRC { computed: rem })
+        } else {
+            Ok([
+                (((output[1][1] as i32) << 24
+                    | (output[1][2] as i32) << 16
+                    | (output[1][3] as i32) << 8)
+                    >> 8),
+                (((output[2][1] as i32) << 24
+                    | (output[2][2] as i32) << 16
+                    | (output[2][3] as i32) << 8)
+                    >> 8),
+                (((output[3][1] as i32) << 24
+                    | (output[3][2] as i32) << 16
+                    | (output[3][3] as i32) << 8)
+                    >> 8),
+            ])
+        }
     }
 
     fn write_register(self: &mut Self, start_addr: u8, data: u16) {
