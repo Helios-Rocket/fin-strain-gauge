@@ -6,7 +6,7 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use defmt::info;
+use defmt::{info,println};
 use esp_firmware::lsm::Lsm;
 use esp_hal::clock::CpuClock;
 use esp_hal::main;
@@ -53,7 +53,7 @@ fn main() -> ! {
     let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(peripherals.RNG)).unwrap();
 
     loop {
-        info!("IMU Output {:#010b}", lsm.read_register(0xF));
+        println!("IMU Output {:?}", lsm.read_lsm());
         let delay_start = Instant::now();
         while delay_start.elapsed() < Duration::from_millis(250) {}
     }
