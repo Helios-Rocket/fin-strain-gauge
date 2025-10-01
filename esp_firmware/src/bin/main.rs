@@ -6,17 +6,17 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use esp_hal::spi::{
-    Mode,
-    master::{Config, Spi},
-};
 use defmt::info;
+use esp_firmware::lsm::Lsm;
 use esp_hal::clock::CpuClock;
 use esp_hal::main;
-use esp_hal::time::{Duration, Instant};
+use esp_hal::spi::{
+    master::{Config, Spi},
+    Mode,
+};
+use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
 use panic_rtt_target as _;
-use lsm::Lsm;
 
 extern crate alloc;
 
@@ -38,13 +38,14 @@ fn main() -> ! {
         Config::default()
             .with_frequency(Rate::from_mhz(1))
             .with_mode(Mode::_0),
-    ).unwrap()
+    )
+    .unwrap()
     .with_sck(peripherals.GPIO18)
     .with_mosi(peripherals.GPIO37)
     .with_miso(peripherals.GPIO36)
     .with_cs(peripherals.GPIO8);
 
-    let mut lsm = Lsm::new(spi); 
+    let mut lsm = Lsm::new(spi);
 
     esp_alloc::heap_allocator!(size: 64 * 1024);
 

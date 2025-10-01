@@ -1,2 +1,2 @@
 #![no_std]
-mod lsm; 
+pub mod lsm;
