@@ -9,28 +9,29 @@ name = "esp_firmware"
 path = "./src/bin/main.rs"
 
 [dependencies]
-esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32"] }
+defmt = "1.0.1"
+esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32s3"] }
 esp-hal = { version = "=1.0.0-rc.0", features = [
-  "esp32",
-  "log-04",
+  "defmt",
+  "esp32s3",
   "unstable",
 ] }
-log = "0.4.27"
 
 critical-section = "1.2.0"
-embedded-io = "0.6.1"
-esp-alloc = "0.8.0"
-esp-println = { version = "0.15.0", features = ["esp32", "log-04"] }
+embedded-io = { version = "0.6.1", features = ["defmt-03"] }
+esp-alloc = { version = "0.8.0", features = ["defmt"] }
 esp-wifi = { version = "0.15.0", features = [
   "builtin-scheduler",
+  "defmt",
   "esp-alloc",
-  "esp32",
-  "log-04",
+  "esp32s3",
   "smoltcp",
   "wifi",
 ] }
+panic-rtt-target = { version = "0.2.0", features = ["defmt"] }
+rtt-target = { version = "0.6.1", features = ["defmt"] }
 smoltcp = { version = "0.12.0", default-features = false, features = [
-  "log",
+  "defmt",
   "medium-ethernet",
   "multicast",
   "proto-dhcpv4",
@@ -42,6 +43,14 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-tcp",
   "socket-udp",
 ] }
+# log                    = "0.4.27"
+# esp-println = { version = "0.15.0", features = ["esp32s3", "log-04"] }
+# esp-backtrace = { version = "0.17.0", features = [
+#   "esp32s3",
+#   "exception-handler",
+#   "panic-handler",
+#   "println",
+# ] }
 
 
 [profile.dev]
