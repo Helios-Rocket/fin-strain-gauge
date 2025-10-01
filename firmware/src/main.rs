@@ -55,7 +55,7 @@ mod app {
     struct Local {
         /// A poller to control USB logging.
         // poller: logging::Poller,
-        start_pin: Input<pins::t41::P23>,
+        start_pin: Input<pins::t41::P22>,
         fins: Fins<
             fin::Pins<
                 pins::t41::P12,
@@ -63,7 +63,7 @@ mod app {
                 pins::t41::P13,
                 pins::t41::P16,
                 pins::t41::P2,
-                pins::t41::P9,
+                pins::t41::P33,
             >,
             4, // lpspi4
             4, // flexpwm4
@@ -82,6 +82,7 @@ mod app {
         let board::Resources {
             mut gpio1,
             mut gpio2,
+            mut gpio4,
             mut pins,
             lpspi4,
             usb,
@@ -104,7 +105,7 @@ mod app {
             &mut pins.p23,
             Config::zero().set_pull_keeper(Some(iomuxc::PullKeeper::Pulldown100k)),
         );
-        let start_pin = gpio1.input(pins.p23);
+        let start_pin = gpio1.input(pins.p22);
 
         let bus_adapter = usbd::BusAdapter::with_speed(
             usb,
@@ -145,7 +146,7 @@ mod app {
                 mosi: pins.p11,
                 sck: pins.p13,
                 cs1: gpio1.output(pins.p16),
-                rst: gpio2.output(pins.p9),
+                rst: gpio4.output(pins.p33),
                 clk: flexpwm::Output::new_a(pins.p2),
             },
             lpspi4,
@@ -245,7 +246,7 @@ mod app {
                 }
                 Err(fin::Error::CRC { computed }) => cx.shared.serial.lock(|serial| {
                     if let Ok(_) = serial.write(
-                        arrform!(128, "CRC Failed! Got remainder {}\r\n", computed).as_bytes(),
+                        arrform!(128, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CRC Failed! Got remainder {}\r\n", computed).as_bytes(),
                     ) {
                     } else {
                     }

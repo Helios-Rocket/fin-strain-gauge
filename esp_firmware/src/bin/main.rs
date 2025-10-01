@@ -6,19 +6,12 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use esp_hal::{
-    clock::CpuClock,
-    main,
-    time::{Duration, Instant},
-};
+use defmt::info;
+use esp_hal::clock::CpuClock;
+use esp_hal::main;
+use esp_hal::time::{Duration, Instant};
 use esp_hal::timer::timg::TimerGroup;
-
-use log::info;
-
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
-    loop {}
-}
+use panic_rtt_target as _;
 
 extern crate alloc;
 
@@ -30,7 +23,7 @@ esp_bootloader_esp_idf::esp_app_desc!();
 fn main() -> ! {
     // generator version: 0.5.0
 
-    esp_println::logger::init_logger_from_env();
+    rtt_target::rtt_init_defmt!();
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -38,16 +31,12 @@ fn main() -> ! {
     esp_alloc::heap_allocator!(size: 64 * 1024);
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    let _init = esp_wifi::init(
-        timg0.timer0,
-        esp_hal::rng::Rng::new(peripherals.RNG),
-    )
-    .unwrap();
+    let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(peripherals.RNG)).unwrap();
 
     loop {
         info!("Hello world!");
         let delay_start = Instant::now();
-        while delay_start.elapsed() < Duration::from_millis(500) {}
+        while delay_start.elapsed() < Duration::from_millis(250) {}
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
