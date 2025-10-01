@@ -6,12 +6,17 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use esp_hal::spi::{
+    Mode,
+    master::{Config, Spi},
+};
 use defmt::info;
 use esp_hal::clock::CpuClock;
 use esp_hal::main;
 use esp_hal::time::{Duration, Instant};
 use esp_hal::timer::timg::TimerGroup;
 use panic_rtt_target as _;
+use lsm::Lsm;
 
 extern crate alloc;
 
@@ -28,13 +33,26 @@ fn main() -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
+    let spi = Spi::new(
+        peripherals.SPI2,
+        Config::default()
+            .with_frequency(Rate::from_mhz(1))
+            .with_mode(Mode::_0),
+    ).unwrap()
+    .with_sck(peripherals.GPIO18)
+    .with_mosi(peripherals.GPIO37)
+    .with_miso(peripherals.GPIO36)
+    .with_cs(peripherals.GPIO8);
+
+    let mut lsm = Lsm::new(spi); 
+
     esp_alloc::heap_allocator!(size: 64 * 1024);
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(peripherals.RNG)).unwrap();
 
     loop {
-        info!("Hello world!");
+        info!("IMU Output {:#010b}", lsm.read_register(0xF));
         let delay_start = Instant::now();
         while delay_start.elapsed() < Duration::from_millis(250) {}
     }
