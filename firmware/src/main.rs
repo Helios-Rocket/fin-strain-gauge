@@ -233,7 +233,7 @@ mod app {
                         }
                     });
                     let volts = fin::convert_adc2volts(data[1]);
-                    if volts.abs() < 0.01 {
+                    if volts.abs() < 0.025 {
                         cx.shared.serial.lock(|serial| {
                             if let Ok(_) =
                                 serial.write(arrform!(128, ">volts:{}\r\n", volts,).as_bytes())
