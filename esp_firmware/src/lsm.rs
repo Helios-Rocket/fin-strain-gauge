@@ -16,6 +16,10 @@ pub struct Data{
 
 impl<'a> Lsm<'a> {
     pub fn new(spi: Spi<'a, Blocking>) -> Self {
+
+        // Write the accel and gyro control registers 
+        let accel_command: u8 = 1_u8 << 7;  
+        write_register(self, 0x10h, )
         Self { spi }
     }
 

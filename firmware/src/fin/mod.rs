@@ -113,7 +113,7 @@ where
             crc16: CRC::create_crc(0x1021, 16, 0xffff, 0, false),
         };
 
-        fin.set_gain(AdcChannel::CH1, Gain::Times4);
+        fin.set_gain(AdcChannel::CH2, Gain::Times4);
 
         // fin.write_register(0x8, 0b0100);
         // fin.write_register(0x13, 0b100);

@@ -218,7 +218,7 @@ mod app {
                         if let Ok(_) = serial.write(
                             arrform!(
                                 128,
-                                "{} deg C\r\n",
+                                "{}\r\n",
                                 fin::convert_volts2temp(fin::convert_adc2volts(data[0])),
                             )
                             .as_bytes(),
@@ -233,8 +233,8 @@ mod app {
                         } else {
                         }
                     });
-                    let volts = fin::convert_adc2volts(data[1]);
-                    if volts.abs() < 0.025 {
+                    let volts = fin::convert_adc2volts(data[2]);
+                    //if volts.abs() < 0.025 {
                         cx.shared.serial.lock(|serial| {
                             if let Ok(_) =
                                 serial.write(arrform!(128, ">volts:{}\r\n", volts,).as_bytes())
@@ -242,7 +242,7 @@ mod app {
                             } else {
                             }
                         });
-                    }
+                    //}
                 }
                 Err(fin::Error::CRC { computed }) => cx.shared.serial.lock(|serial| {
                     if let Ok(_) = serial.write(
