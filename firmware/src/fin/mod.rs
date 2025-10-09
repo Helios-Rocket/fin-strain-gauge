@@ -189,7 +189,8 @@ where
         reg_val
     }
 
-    pub fn read_adc_data(self: &mut Self) -> Result<[i32; 3], Error> {
+    // Get all adc channel values in volts
+    pub fn read_adc_data(self: &mut Self) -> Result<[f64; 3], Error> {
         let transaction = Transaction::new(24).unwrap();
         self.pins.cs1.clear();
         for _ in 0..5 {
@@ -220,18 +221,27 @@ where
             Err(Error::CRC { computed: rem })
         } else {
             Ok([
-                (((output[1][1] as i32) << 24
-                    | (output[1][2] as i32) << 16
-                    | (output[1][3] as i32) << 8)
-                    >> 8),
-                (((output[2][1] as i32) << 24
-                    | (output[2][2] as i32) << 16
-                    | (output[2][3] as i32) << 8)
-                    >> 8),
-                (((output[3][1] as i32) << 24
-                    | (output[3][2] as i32) << 16
-                    | (output[3][3] as i32) << 8)
-                    >> 8),
+                convert_adc2volts(
+                    ((output[1][1] as i32) << 24
+                        | (output[1][2] as i32) << 16
+                        | (output[1][3] as i32) << 8)
+                        >> 8,
+                    self.get_gain(AdcChannel::CH0),
+                ),
+                convert_adc2volts(
+                    ((output[2][1] as i32) << 24
+                        | (output[2][2] as i32) << 16
+                        | (output[2][3] as i32) << 8)
+                        >> 8,
+                    self.get_gain(AdcChannel::CH1),
+                ),
+                convert_adc2volts(
+                    ((output[3][1] as i32) << 24
+                        | (output[3][2] as i32) << 16
+                        | (output[3][3] as i32) << 8)
+                        >> 8,
+                    self.get_gain(AdcChannel::CH2),
+                ),
             ])
         }
     }
@@ -262,6 +272,6 @@ pub fn convert_volts2temp(input: f64) -> f64 {
     (input - 0.5) * 100.0
 }
 
-pub fn convert_adc2volts(code: i32) -> f64 {
-    (code as f64) * (2.4 / (1_u32 << 24) as f64)
+pub fn convert_adc2volts(code: i32, gain: Gain) -> f64 {
+    (code as f64) * ((2.4 / gain.to_multiplier() as f64) / (1_u32 << 24) as f64)
 }

@@ -55,6 +55,12 @@ pub mod registers {
             Times128 = 0b111,
         }
 
+        impl Gain {
+            pub fn to_multiplier(self) -> u32 {
+                2_u32.pow(self as _)
+            }
+        }
+
         impl TryFrom<u8> for Gain {
             type Error = u8;
 
