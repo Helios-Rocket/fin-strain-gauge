@@ -43,14 +43,10 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-tcp",
   "socket-udp",
 ] }
-# log                    = "0.4.27"
-# esp-println = { version = "0.15.0", features = ["esp32s3", "log-04"] }
-# esp-backtrace = { version = "0.17.0", features = [
-#   "esp32s3",
-#   "exception-handler",
-#   "panic-handler",
-#   "println",
-# ] }
+esp32s3 = "0.33.0"
+embedded-error = "0.6.0"
+bitfield = "0.19.2"
+crc-any = { version = "2.5.0", default-features = false }
 
 
 [profile.dev]

@@ -20,18 +20,18 @@ impl<'a> Lsm<'a> {
         Self { spi }
     }
 
-    fn read_register(self: &mut Self, addr: u8, buf: &mut [u8]) {
+    fn read_register(&mut self, addr: u8, buf: &mut [u8]) {
         let command: u8 = 1 << 7 | addr;
         self.spi.write(&[command]).unwrap();
         self.spi.read(buf).unwrap();
     }
 
-    fn write_register(self: &mut Self, addr: u8, data: u8) {
+    fn write_register(&mut self, addr: u8, data: u8) {
         let command: u16 = (addr as u16) << 8 | (data as u16);
         self.spi.write(&command.to_be_bytes()).unwrap();
     }
 
-    pub fn read_lsm(self: &mut Self) -> Data {
+    pub fn read_lsm(&mut self) -> Data {
         let mut buf = [0_u8; 12];
         self.read_register(0x22, &mut buf);
 

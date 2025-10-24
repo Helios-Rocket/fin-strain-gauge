@@ -1,0 +1,11 @@
+[default.general]
+chip = "esp32s3"
+
+[default.probe]
+protocol = "Jtag"
+
+[default.reset]
+halt_afterwards = true
+
+[default.gdb]
+enabled = true
