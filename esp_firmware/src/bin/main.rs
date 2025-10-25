@@ -13,12 +13,6 @@ use esp_firmware::fin::{self, Fins, GpioPins, PwmPins, SpiPins};
 use esp_firmware::lsm::Lsm;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_hal::clock::CpuClock;
-use esp_hal::declare_aligned_dma_buffer;
-use esp_hal::dma::as_mut_byte_array;
-use esp_hal::mcpwm::operator::PwmPinConfig;
-use esp_hal::mcpwm::timer::PwmWorkingMode;
-use esp_hal::mcpwm::McPwm;
-use esp_hal::pcnt::Pcnt;
 use esp_hal::spi::{
     master::{Config, Spi},
     Mode,
@@ -98,16 +92,16 @@ fn main() -> ! {
     let timg0 = TimerGroup::new(p.TIMG0);
     let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(p.RNG)).unwrap();
 
-    sd.init().unwrap();
+    // sd.init().unwrap();
 
     loop {
         for (i, data) in fins.read_all_data().into_iter().enumerate() {
             println!("---Fin {}---", i);
             match data {
                 Ok(data) => {
-                    println!("temp: {}", data[0]);
+                    println!("temp: {}", esp_firmware::fin::convert_volts2temp(data[0]));
                     println!("volts left: {}", data[1]);
-                    println!("temp right: {}", data[2]);
+                    println!("volts right: {}", data[2]);
                 }
                 Err(fin::Error::CRC { computed }) => {
                     error!("!!! CRC Failed, got remainder {}", computed)
@@ -115,6 +109,6 @@ fn main() -> ! {
             }
         }
         let delay_start = Instant::now();
-        while delay_start.elapsed() < Duration::from_millis(50) {}
+        while delay_start.elapsed() < Duration::from_millis(100) {}
     }
 }

@@ -7,7 +7,7 @@ pub use adc_consts::{registers::gain::Gain, AdcChannel};
 use esp_hal::{
     gpio::{
         interconnect::{self, PeripheralOutput},
-        DriveStrength, Level, Output, OutputConfig, OutputPin,
+        AnyPin, DriveStrength, Level, Output, OutputConfig, OutputPin,
     },
     mcpwm::{self, operator::PwmPinConfig, timer::PwmWorkingMode, McPwm, PwmPeripheral},
     spi::master::{AnySpi, Config, Spi},
@@ -233,15 +233,15 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
         } else {
             Ok([
                 convert_adc2volts(
-                    ((buf[0] as i32) << 24 | (buf[1] as i32) << 16 | (buf[2] as i32) << 8) >> 8,
+                    ((buf[3] as i32) << 24 | (buf[4] as i32) << 16 | (buf[5] as i32) << 8) >> 8,
                     self.gains[fin_idx][AdcChannel::CH0 as usize],
                 ),
                 convert_adc2volts(
-                    ((buf[3] as i32) << 24 | (buf[4] as i32) << 16 | (buf[5] as i32) << 8) >> 8,
+                    ((buf[6] as i32) << 24 | (buf[7] as i32) << 16 | (buf[8] as i32) << 8) >> 8,
                     self.gains[fin_idx][AdcChannel::CH1 as usize],
                 ),
                 convert_adc2volts(
-                    ((buf[6] as i32) << 24 | (buf[7] as i32) << 16 | (buf[8] as i32) << 8) >> 8,
+                    ((buf[9] as i32) << 24 | (buf[10] as i32) << 16 | (buf[11] as i32) << 8) >> 8,
                     self.gains[fin_idx][AdcChannel::CH2 as usize],
                 ),
             ])
