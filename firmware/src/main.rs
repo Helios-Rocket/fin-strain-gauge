@@ -55,13 +55,16 @@ mod app {
     struct Local {
         /// A poller to control USB logging.
         // poller: logging::Poller,
-        start_pin: Input<pins::t41::P22>,
+        start_pin: Input<pins::t41::P21>,
         fins: Fins<
             fin::Pins<
                 pins::t41::P12,
                 pins::t41::P11,
                 pins::t41::P13,
-                pins::t41::P16,
+                pins::t41::P6,
+                pins::t41::P22,
+                pins::t41::P25,
+                pins::t41::P34,
                 pins::t41::P2,
                 pins::t41::P33,
             >,
@@ -105,7 +108,7 @@ mod app {
             &mut pins.p23,
             Config::zero().set_pull_keeper(Some(iomuxc::PullKeeper::Pulldown100k)),
         );
-        let start_pin = gpio1.input(pins.p22);
+        let start_pin = gpio1.input(pins.p21);
 
         let bus_adapter = usbd::BusAdapter::with_speed(
             usb,
@@ -145,7 +148,10 @@ mod app {
                 miso: pins.p12,
                 mosi: pins.p11,
                 sck: pins.p13,
-                cs1: gpio1.output(pins.p16),
+                cs1: gpio2.output(pins.p6),
+                cs2: gpio1.output(pins.p22),
+                cs3: gpio1.output(pins.p25),
+                cs4: gpio2.output(pins.p34),
                 rst: gpio4.output(pins.p33),
                 clk: flexpwm::Output::new_a(pins.p2),
             },
@@ -212,19 +218,55 @@ mod app {
     // Make this a function within fins
     async fn read_fin_spi(mut cx: read_fin_spi::Context) {
         loop {
-            match cx.local.fins.read_adc_data() {
-                Ok(data) => {
-                    cx.shared.serial.lock(|serial| {
+            for (i, data) in cx.local.fins.read_all_data().into_iter().enumerate() {
+                match data {
+                    Ok(data) => {
+                        cx.shared.serial.lock(|serial| {
+                            if let Ok(_) = serial.write(
+                                arrform!(
+                                    128,
+                                    ">temp{}:{}\r\n",
+                                    i,
+                                    fin::convert_volts2temp(data[0]),
+                                )
+                                .as_bytes(),
+                            ) {
+                            } else {
+                            }
+                        });
+                        cx.shared.serial.lock(|serial| {
+                            if let Ok(_) = serial
+                                .write(arrform!(128, ">volts{} 1:{}\r\n", i, data[1],).as_bytes())
+                            {
+                            } else {
+                            }
+                        });
+                        cx.shared.serial.lock(|serial| {
+                            if let Ok(_) = serial
+                                .write(arrform!(128, ">volts{} 2:{}\r\n", i, data[2],).as_bytes())
+                            {
+                            } else {
+                            }
+                        });
+                    }
+                    Err(fin::Error::CRC { computed }) => cx.shared.serial.lock(|serial| {
                         if let Ok(_) = serial.write(
                             arrform!(
                                 128,
+<<<<<<< HEAD
                                 "{}\r\n",
                                 fin::convert_volts2temp(fin::convert_adc2volts(data[0])),
+=======
+                                "!!!!!! CRC Failed for fin {}! Got remainder {}\r\n",
+                                i,
+                                computed
+>>>>>>> 718144128ca5d7f674a413a9bf8eef56e4676822
                             )
                             .as_bytes(),
                         ) {
                         } else {
                         }
+<<<<<<< HEAD
                     });
                     cx.shared.serial.lock(|serial| {
                         if let Ok(_) = serial.write(
@@ -243,14 +285,11 @@ mod app {
                             }
                         });
                     //}
+=======
+                    }),
+>>>>>>> 718144128ca5d7f674a413a9bf8eef56e4676822
                 }
-                Err(fin::Error::CRC { computed }) => cx.shared.serial.lock(|serial| {
-                    if let Ok(_) = serial.write(
-                        arrform!(128, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CRC Failed! Got remainder {}\r\n", computed).as_bytes(),
-                    ) {
-                    } else {
-                    }
-                }),
+                Systick::delay(1_u32.millis()).await;
             }
             Systick::delay(20_u32.millis()).await;
         }
