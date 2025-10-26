@@ -36,9 +36,11 @@
             espup
             esp-generate
             cargo-espflash
+            cargo-expand
             probe-rs
             gcc
             libz
+            gdb
           ];
           runScript = "bash";
           profile = ''
