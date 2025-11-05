@@ -4727,6 +4727,12 @@
 		(uuid "4a618122-ecab-4216-9436-6c10b07dfc9d")
 	)
 	(junction
+		(at 45.72 125.73)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "5d4498a1-a51a-4d0f-a62a-1098a6476527")
+	)
+	(junction
 		(at 50.8 38.1)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5222,16 +5228,6 @@
 	)
 	(wire
 		(pts
-			(xy 168.91 109.22) (xy 172.72 109.22)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "47c75cf6-2f82-4564-b439-cac6efc4ce7c")
-	)
-	(wire
-		(pts
 			(xy 248.92 113.03) (xy 248.92 109.22)
 		)
 		(stroke
@@ -5239,6 +5235,16 @@
 			(type default)
 		)
 		(uuid "493a4e92-5cdc-4c5d-b426-0d5ca01961c7")
+	)
+	(wire
+		(pts
+			(xy 39.37 125.73) (xy 39.37 127)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "49620095-81f9-4087-a2d3-2b02bbcb1867")
 	)
 	(wire
 		(pts
@@ -5472,6 +5478,16 @@
 	)
 	(wire
 		(pts
+			(xy 39.37 127) (xy 36.83 127)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6c6a6da7-ce23-41c5-8bb2-a075c735266a")
+	)
+	(wire
+		(pts
 			(xy 138.43 40.64) (xy 138.43 43.18)
 		)
 		(stroke
@@ -5672,7 +5688,7 @@
 	)
 	(wire
 		(pts
-			(xy 36.83 127) (xy 40.64 127)
+			(xy 39.37 125.73) (xy 40.64 125.73)
 		)
 		(stroke
 			(width 0)
@@ -5852,16 +5868,6 @@
 	)
 	(wire
 		(pts
-			(xy 168.91 116.84) (xy 172.72 116.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "adaef9d5-dfd2-4592-ad1f-da68f3e7287b")
-	)
-	(wire
-		(pts
 			(xy 262.89 34.29) (xy 271.78 34.29)
 		)
 		(stroke
@@ -5959,16 +5965,6 @@
 			(type default)
 		)
 		(uuid "b6b4a839-7468-4bf8-a0c7-13ec7fa808ac")
-	)
-	(wire
-		(pts
-			(xy 168.91 111.76) (xy 172.72 111.76)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b9125bfd-2c78-44c4-afbb-9a8d03df11c8")
 	)
 	(wire
 		(pts
@@ -6232,16 +6228,6 @@
 	)
 	(wire
 		(pts
-			(xy 128.27 110.49) (xy 132.08 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ddb3e8e7-20bf-40b3-be68-7ed9aabfcf93")
-	)
-	(wire
-		(pts
 			(xy 97.79 115.57) (xy 100.33 115.57)
 		)
 		(stroke
@@ -6412,16 +6398,6 @@
 	)
 	(wire
 		(pts
-			(xy 168.91 114.3) (xy 172.72 114.3)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f9058a81-eede-4547-bc83-f98200498764")
-	)
-	(wire
-		(pts
 			(xy 100.33 130.81) (xy 100.33 115.57)
 		)
 		(stroke
@@ -6496,7 +6472,7 @@
 	)
 	(global_label "FIN_CS2"
 		(shape bidirectional)
-		(at 172.72 111.76 0)
+		(at 176.53 111.76 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6506,7 +6482,7 @@
 		)
 		(uuid "050ada24-ba5d-4401-babc-659b4a225e2a")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 184.497 111.76 0)
+			(at 188.307 111.76 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6540,7 +6516,7 @@
 	)
 	(global_label "FIN_CS4"
 		(shape bidirectional)
-		(at 172.72 116.84 0)
+		(at 176.53 116.84 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6550,7 +6526,7 @@
 		)
 		(uuid "0cc57ffa-f300-4373-a20c-091017241705")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 184.497 116.84 0)
+			(at 188.307 116.84 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6738,7 +6714,7 @@
 	)
 	(global_label "FIN_CS1"
 		(shape bidirectional)
-		(at 172.72 109.22 0)
+		(at 176.53 109.22 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6748,7 +6724,7 @@
 		)
 		(uuid "344b6c60-a762-4e6a-94c0-c9ad26433067")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 184.497 109.22 0)
+			(at 188.307 109.22 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6760,7 +6736,7 @@
 	)
 	(global_label "FIN_MISO"
 		(shape bidirectional)
-		(at 132.08 110.49 0)
+		(at 135.89 110.49 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6770,7 +6746,7 @@
 		)
 		(uuid "3536354a-ad7a-4b1a-accb-03bcfe395064")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 144.7642 110.49 0)
+			(at 148.5742 110.49 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6782,7 +6758,7 @@
 	)
 	(global_label "FIN_CS3"
 		(shape bidirectional)
-		(at 172.72 114.3 0)
+		(at 176.53 114.3 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6792,7 +6768,7 @@
 		)
 		(uuid "44d5e3d1-6423-461f-a905-2aee9e6f603a")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 184.497 114.3 0)
+			(at 188.307 114.3 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7829,6 +7805,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 132.08 110.49 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "04d0b100-63a1-408c-896f-7df57794cc3d")
+		(property "Reference" "R11"
+			(at 132.08 105.664 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "200 Ohm"
+			(at 132.08 108.204 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 132.08 112.268 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 132.08 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 132.08 110.49 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2067c529-7fd0-4dab-9ecd-a963d92aa5c8")
+		)
+		(pin "2"
+			(uuid "aeb2049b-73d3-4b15-a6cf-f69a044804c4")
+		)
+		(instances
+			(project "flight-computer"
+				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
+					(reference "R11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Connector:Conn_01x06_Pin")
 		(at 163.83 116.84 0)
 		(mirror x)
@@ -7856,7 +7899,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_ZH_S6B-ZR-SM4A-TF_1x06-1MP_P1.50mm_Horizontal"
+		(property "Footprint" "Connector_JST:JST_ZE_S06B-ZESK-2D_1x06_P1.50mm_Horizontal"
 			(at 163.83 116.84 0)
 			(effects
 				(font
@@ -8054,7 +8097,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 43.18 127 90)
+		(at 43.18 125.73 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8062,7 +8105,7 @@
 		(dnp no)
 		(uuid "16921640-58c8-481e-8233-0816cc6d93f1")
 		(property "Reference" "C9"
-			(at 40.132 121.412 90)
+			(at 40.132 120.142 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8070,7 +8113,7 @@
 			)
 		)
 		(property "Value" "0.1uF"
-			(at 39.624 123.444 90)
+			(at 39.624 122.174 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8078,7 +8121,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 43.18 127 0)
+			(at 43.18 125.73 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8087,7 +8130,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 43.18 127 0)
+			(at 43.18 125.73 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8096,7 +8139,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
-			(at 43.18 127 0)
+			(at 43.18 125.73 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8180,6 +8223,73 @@
 			(project ""
 				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
 					(reference "#PWR04")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 172.72 116.84 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1e1c0576-b697-4ca6-82fa-7714b6810085")
+		(property "Reference" "R15"
+			(at 172.72 112.014 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "200 Ohm"
+			(at 172.72 114.554 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 172.72 118.618 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 172.72 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 172.72 116.84 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "101f9798-cc88-459c-a193-e4fabd7a0cb6")
+		)
+		(pin "2"
+			(uuid "552ba34d-6a5e-4342-a49f-ddbe61513a80")
+		)
+		(instances
+			(project "flight-computer"
+				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
+					(reference "R15")
 					(unit 1)
 				)
 			)
@@ -8535,6 +8645,73 @@
 			(project "flight-computer"
 				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
 					(reference "C8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 172.72 114.3 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "27caa031-484b-4be6-a307-912ef7ea9037")
+		(property "Reference" "R14"
+			(at 172.72 109.474 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "200 Ohm"
+			(at 172.72 112.014 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 172.72 116.078 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 172.72 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 172.72 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "9230cf51-e474-4ef6-b6df-baf6450928ef")
+		)
+		(pin "2"
+			(uuid "ce22bbc9-1b9d-4edc-972b-eec90477a493")
+		)
+		(instances
+			(project "flight-computer"
+				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
+					(reference "R14")
 					(unit 1)
 				)
 			)
@@ -9232,7 +9409,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 95.25 115.57 0)
 			(effects
 				(font
@@ -9586,7 +9763,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_ZH_S6B-ZR-SM4A-TF_1x06-1MP_P1.50mm_Horizontal"
+		(property "Footprint" "Connector_JST:JST_ZE_S06B-ZESK-2D_1x06_P1.50mm_Horizontal"
 			(at 123.19 115.57 0)
 			(effects
 				(font
@@ -11164,7 +11341,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 102.87 133.35 0)
 			(effects
 				(font
@@ -11469,6 +11646,73 @@
 			(project ""
 				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
 					(reference "R1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 172.72 109.22 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "be4ac8b7-178d-4eff-8061-714b066f067b")
+		(property "Reference" "R12"
+			(at 172.72 104.394 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "200 Ohm"
+			(at 172.72 106.934 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 172.72 110.998 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 172.72 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 172.72 109.22 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a37db0c5-d988-4784-988e-fc7080e98ab2")
+		)
+		(pin "2"
+			(uuid "13ea1992-1235-4081-92af-aa4753340995")
+		)
+		(instances
+			(project "flight-computer"
+				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
+					(reference "R12")
 					(unit 1)
 				)
 			)
@@ -12268,6 +12512,73 @@
 			(project ""
 				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
 					(reference "#PWR03")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 172.72 111.76 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f5343355-bb18-44e0-aa34-d0cac1c9311b")
+		(property "Reference" "R13"
+			(at 172.72 106.934 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "200 Ohm"
+			(at 172.72 109.474 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 172.72 113.538 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 172.72 111.76 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 172.72 111.76 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "016273cb-41e7-4db8-b280-e9d387ee7870")
+		)
+		(pin "2"
+			(uuid "ccf3e7e2-cc63-45d7-aea4-9a294d793d36")
+		)
+		(instances
+			(project "flight-computer"
+				(path "/4ecd09a6-9393-48a2-99c4-3daa7c04326d"
+					(reference "R13")
 					(unit 1)
 				)
 			)
