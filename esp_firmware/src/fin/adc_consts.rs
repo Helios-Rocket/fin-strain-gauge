@@ -37,6 +37,44 @@ pub mod registers {
 
         pub const DISABLE_ALL_CHANNEL_MASK: u16 = !(0b111 << 8);
         pub const ENABLE_ALL_CHANNEL_MASK: u16 = 0b111 << 8;
+
+        pub mod osr {
+            pub const SHIFT: u16 = 2;
+            pub const MASK: u16 = 0b111 << SHIFT;
+
+            #[repr(u8)]
+            #[derive(Copy, Clone, Debug)]
+            pub enum OSR {
+                Times128 = 0b000,
+                Times256 = 0b001,
+                Times512 = 0b010,
+                Times1024 = 0b011,
+                Times2048 = 0b100,
+                Times4096 = 0b101,
+                Times8192 = 0b110,
+                Times16384 = 0b111,
+            }
+
+            impl TryFrom<u8> for OSR {
+                type Error = u8;
+
+                fn try_from(value: u8) -> Result<Self, Self::Error> {
+                    if value <= 0b111 {
+                        Ok(unsafe { core::mem::transmute(value) })
+                    } else {
+                        Err(value)
+                    }
+                }
+            }
+
+            pub fn set(reg: u16, val: OSR) -> u16 {
+                (reg & !MASK) | ((val as u16) << SHIFT)
+            }
+
+            pub fn get(reg: u16) -> OSR {
+                (((reg & MASK) >> SHIFT) as u8).try_into().unwrap()
+            }
+        }
     }
 
     pub mod gain {
@@ -79,8 +117,8 @@ pub mod registers {
             pub const SHIFT: u16 = 0;
             pub const MASK: u16 = 0b111 << SHIFT;
 
-            pub fn set(g: Gain) -> u16 {
-                (g as u16) << SHIFT
+            pub fn set(reg: u16, g: Gain) -> u16 {
+                (reg & !MASK) | ((g as u16) << SHIFT)
             }
 
             pub fn get(reg: u16) -> Gain {
@@ -94,8 +132,8 @@ pub mod registers {
             pub const SHIFT: u16 = 4;
             pub const MASK: u16 = 0b111 << SHIFT;
 
-            pub fn set(g: Gain) -> u16 {
-                (g as u16) << SHIFT
+            pub fn set(reg: u16, g: Gain) -> u16 {
+                (reg & !MASK) | ((g as u16) << SHIFT)
             }
 
             pub fn get(reg: u16) -> Gain {
@@ -109,8 +147,8 @@ pub mod registers {
             pub const SHIFT: u16 = 8;
             pub const MASK: u16 = 0b111 << SHIFT;
 
-            pub fn set(g: Gain) -> u16 {
-                (g as u16) << SHIFT
+            pub fn set(reg: u16, g: Gain) -> u16 {
+                (reg & !MASK) | ((g as u16) << SHIFT)
             }
 
             pub fn get(reg: u16) -> Gain {

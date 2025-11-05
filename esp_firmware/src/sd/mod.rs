@@ -14,7 +14,7 @@ use response::{ResponseConfig, ResponseLength};
 
 use crate::sd::response::response_status::{self, DEFAULT_EVENTS};
 
-const TIMEOUT: Duration = Duration::from_millis(100);
+const TIMEOUT: Duration = Duration::from_millis(500);
 
 pub struct SdHost<'d> {
     instance: peripherals::SDHOST<'d>,

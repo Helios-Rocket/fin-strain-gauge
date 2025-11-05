@@ -95,7 +95,8 @@ fn main() -> ! {
     // sd.init().unwrap();
 
     loop {
-        for (i, data) in fins.read_all_data().into_iter().enumerate() {
+        // continue;
+        for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
             println!("---Fin {}---", i);
             match data {
                 Ok(data) => {
@@ -109,6 +110,6 @@ fn main() -> ! {
             }
         }
         let delay_start = Instant::now();
-        while delay_start.elapsed() < Duration::from_millis(100) {}
+        while delay_start.elapsed() < Duration::from_micros(100) {}
     }
 }

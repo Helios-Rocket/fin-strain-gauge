@@ -1,0 +1,5 @@
+- With Clk being a twisted pair with ground and 100 Ohm source termination, the signal looks pretty good over a bigger distance than we need in reality.
+- Just using a single wire for the SPI lines works better than the copper tape + ground (as in, it works even with 3.3v connected)
+  - Using 51 Ohm source termination on SCK and MOSI and 51 Ohm + 20 pF end termination on MISO
+- Everything works without 3.3v
+- Things improve when you put your hand near signals

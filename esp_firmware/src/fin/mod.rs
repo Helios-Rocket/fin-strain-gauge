@@ -11,9 +11,11 @@ use esp_hal::{
     },
     mcpwm::{self, operator::PwmPinConfig, timer::PwmWorkingMode, McPwm, PwmPeripheral},
     spi::master::{AnySpi, Config, Spi},
-    time::Rate,
+    time::{Duration, Instant, Rate},
     Blocking,
 };
+
+use crate::fin::adc_consts::registers::clock::osr::OSR;
 
 #[derive(Copy, Clone)]
 pub enum Error {
@@ -115,13 +117,19 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
             .with_pin_a(pwm_pins.clk, PwmPinConfig::UP_ACTIVE_HIGH);
 
         let timer_clock_config = clock_cfg
-            .timer_clock_with_frequency(9, PwmWorkingMode::Increase, Rate::from_mhz(4))
+            .timer_clock_with_frequency(9, PwmWorkingMode::Increase, Rate::from_mhz(8))
             .unwrap();
 
         mcpwm.timer0.start(timer_clock_config);
         pwm_pin.set_timestamp(5);
 
+        let leave_reset_time = Instant::now() + Duration::from_millis(5);
+        while Instant::now() < leave_reset_time {}
+
         gpio_pins.rst.set_high(); // Set the (active low) RST pin for the ADC to pull it out of reset and start it running
+
+        let device_ready_time = Instant::now() + Duration::from_millis(5);
+        while Instant::now() < device_ready_time {}
 
         let mut fin = Self {
             spi,
@@ -137,8 +145,10 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
             fin.gains[i][AdcChannel::CH1 as usize] = registers::gain::ch1::get(reg);
             fin.gains[i][AdcChannel::CH2 as usize] = registers::gain::ch2::get(reg);
 
-            fin.set_gain(i, AdcChannel::CH1, Gain::Times4);
-            fin.set_gain(i, AdcChannel::CH2, Gain::Times4);
+            fin.set_osr(i, OSR::Times512);
+
+            // fin.set_gain(i, AdcChannel::CH1, Gain::Times4);
+            // fin.set_gain(i, AdcChannel::CH2, Gain::Times4);
         }
 
         // fin.write_register(0x8, 0b0100);
@@ -157,36 +167,43 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
         ret
     }
 
-    fn set_gain(self: &mut Self, fin_idx: usize, channel: AdcChannel, gain: Gain) {
+    fn set_gain(&mut self, fin_idx: usize, channel: AdcChannel, gain: Gain) {
         use registers::*;
 
         let reg = self.read_register(fin_idx, gain::ADDR);
         self.write_register(
             fin_idx,
             gain::ADDR,
-            reg | match channel {
-                AdcChannel::CH0 => gain::ch0::set(gain),
-                AdcChannel::CH1 => gain::ch1::set(gain),
-                AdcChannel::CH2 => gain::ch2::set(gain),
+            match channel {
+                AdcChannel::CH0 => gain::ch0::set(reg, gain),
+                AdcChannel::CH1 => gain::ch1::set(reg, gain),
+                AdcChannel::CH2 => gain::ch2::set(reg, gain),
             },
         );
 
         self.gains[fin_idx][channel as usize] = gain;
     }
 
-    fn disable_adc_channels(self: &mut Self, fin_idx: usize) {
+    fn set_osr(&mut self, fin_idx: usize, osr: OSR) {
+        use registers::*;
+
+        let reg = self.read_register(fin_idx, clock::ADDR);
+        self.write_register(fin_idx, clock::ADDR, clock::osr::set(reg, osr));
+    }
+
+    fn disable_adc_channels(&mut self, fin_idx: usize) {
         use registers::*;
         let reg = self.read_register(fin_idx, clock::ADDR);
         self.write_register(fin_idx, clock::ADDR, reg & clock::DISABLE_ALL_CHANNEL_MASK);
     }
 
-    fn enable_adc_channels(self: &mut Self, fin_idx: usize) {
+    fn enable_adc_channels(&mut self, fin_idx: usize) {
         use registers::*;
         let reg = self.read_register(fin_idx, clock::ADDR);
         self.write_register(fin_idx, clock::ADDR, reg | clock::ENABLE_ALL_CHANNEL_MASK);
     }
 
-    fn read_register(self: &mut Self, fin_idx: usize, addr: u8) -> u16 {
+    fn read_register(&mut self, fin_idx: usize, addr: u8) -> u16 {
         let addr: u32 = (addr as u32) & 0x3F;
         let cmd: u32 = (0b101_u32 << 13 | addr << 7) << 8;
 
@@ -210,13 +227,13 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
 
         self.unassert_cs(fin_idx);
 
-        let reg_val = u16::from_be_bytes([buf[1], buf[2]]);
+        let reg_val = u16::from_be_bytes([buf[0], buf[1]]);
 
         reg_val
     }
 
     // Get all adc channel values in volts for a single fin
-    fn read_adc_data(self: &mut Self, fin_idx: usize) -> Result<[f64; 3], Error> {
+    fn read_adc_data(&mut self, fin_idx: usize) -> Result<[f64; 3], Error> {
         self.assert_cs(fin_idx);
 
         let mut buf = [0_u8; 15];
@@ -248,7 +265,7 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
         }
     }
 
-    fn write_register(self: &mut Self, fin_idx: usize, start_addr: u8, data: u16) {
+    fn write_register(&mut self, fin_idx: usize, start_addr: u8, data: u16) {
         let start_addr: u32 = (start_addr as u32) & 0x3f;
         let cmd = (0b011_u32 << 13 | start_addr << 7) << 8;
 
@@ -277,9 +294,15 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
             3 => self.pins.cs4.set_low(),
             _ => panic!("Invalid fin idx {}", fin_idx),
         }
+
+        let start_transmission_time = Instant::now() + Duration::from_micros(1);
+        while Instant::now() < start_transmission_time {}
     }
 
     fn unassert_cs(&mut self, fin_idx: usize) {
+        let end_transmission_time = Instant::now() + Duration::from_micros(1);
+        while Instant::now() < end_transmission_time {}
+
         match fin_idx {
             0 => self.pins.cs1.set_high(),
             1 => self.pins.cs2.set_high(),
