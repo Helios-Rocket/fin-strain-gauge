@@ -10,8 +10,8 @@ path = "./src/bin/main.rs"
 
 [dependencies]
 defmt = "1.0.1"
-esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32s3"] }
-esp-hal = { version = "=1.0.0-rc.0", features = [
+esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"] }
+esp-hal = { version = "=1.0.0", features = [
   "defmt",
   "esp32s3",
   "unstable",
@@ -19,17 +19,10 @@ esp-hal = { version = "=1.0.0-rc.0", features = [
 
 critical-section = "1.2.0"
 embedded-io = { version = "0.6.1", features = ["defmt-03"] }
-esp-alloc = { version = "0.8.0", features = ["defmt"] }
-esp-wifi = { version = "0.15.0", features = [
-  "builtin-scheduler",
-  "defmt",
-  "esp-alloc",
-  "esp32s3",
-  "smoltcp",
-  "wifi",
-] }
+esp-alloc = { version = "0.9.0", features = ["defmt"] }
+esp-radio = { version = "0.17.0", features = ["esp-now", "defmt", "unstable", "esp32s3"] }
 panic-rtt-target = { version = "0.2.0", features = ["defmt"] }
-rtt-target = { version = "0.6.1", features = ["defmt"] }
+rtt-target = { version = "0.6.2", features = ["defmt"] }
 smoltcp = { version = "0.12.0", default-features = false, features = [
   "defmt",
   "medium-ethernet",
@@ -43,10 +36,11 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-tcp",
   "socket-udp",
 ] }
-esp32s3 = "0.33.0"
+esp32s3 = "0.34.0"
 embedded-error = "0.6.0"
 bitfield = "0.19.2"
 crc-any = { version = "2.5.0", default-features = false }
+esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio"] }
 
 
 [profile.dev]

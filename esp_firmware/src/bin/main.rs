@@ -13,6 +13,7 @@ use esp_firmware::fin::{self, Fins, GpioPins, PwmPins, SpiPins};
 use esp_firmware::lsm::Lsm;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_hal::clock::CpuClock;
+use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::spi::{
     master::{Config, Spi},
     Mode,
@@ -20,6 +21,8 @@ use esp_hal::spi::{
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{dma_buffers, main, mcpwm};
+use esp_radio::esp_now::{BROADCAST_ADDRESS, PeerInfo}; 
+use esp_rtos; 
 use panic_rtt_target as _;
 
 extern crate alloc;
@@ -90,12 +93,53 @@ fn main() -> ! {
     // let buf = as_mut_byte_array!(BUFFER, 10);
 
     let timg0 = TimerGroup::new(p.TIMG0);
-    let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(p.RNG)).unwrap();
+    esp_rtos::start(timg0.timer0);
+    //let init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(p.RNG)).unwrap();
 
-    // sd.init().unwrap();
+    // Wifi stuff
+   let esp_radio_ctrl = esp_radio::init().unwrap(); 
+
+   let wifi = p.WIFI; 
+   let (mut controller, interfaces) = esp_radio::wifi::new(&esp_radio_ctrl, wifi, Default::default()).unwrap(); 
+   controller.set_mode(esp_radio::wifi::WifiMode::Sta).unwrap();
+   controller.start().unwrap(); 
+
+   let mut esp_now = interfaces.esp_now; 
+   println!("esp-now version {}", esp_now.version().unwrap());
+   esp_now.set_channel(11).unwrap(); 
+   let mut next_send_time = Instant::now() + Duration::from_secs(5); 
+
+    sd.init().unwrap();
 
     loop {
-        // continue;
+
+        // Wifi Loop
+        let r = esp_now.receive(); 
+        if let Some(r) = r {
+            println!("Received {:?}", r); 
+
+            if r.info.dst_address == BROADCAST_ADDRESS {
+                if !esp_now.peer_exists(&r.info.src_address) {
+                    esp_now.add_peer(PeerInfo { interface: esp_radio::esp_now::EspNowWifiInterface::Sta, 
+                                                peer_address: r.info.src_address, 
+                                                lmk: (None), 
+                                                channel: (None), 
+                                                encrypt: (false) })
+                                                .unwrap(); 
+                }
+                let status = esp_now.send(&r.info.src_address, b"Hello Peer").unwrap().wait(); 
+                println!("Send hello to peer status: {:?}", status); 
+            }
+        }
+
+        if Instant::now() >= next_send_time{
+            next_send_time = Instant::now() + Duration::from_secs(5); 
+            println!("Send"); 
+            let status = esp_now.send(&BROADCAST_ADDRESS, b"0123456789").unwrap().wait();
+            println!("Send broadcast status: {:?}", status); 
+        }
+
+        continue;
         for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
             println!("---Fin {}---", i);
             match data {
@@ -109,7 +153,9 @@ fn main() -> ! {
                 }
             }
         }
+        // Remember this when implementing the wifi time 
         let delay_start = Instant::now();
         while delay_start.elapsed() < Duration::from_micros(100) {}
+        println!("Go to this point"); 
     }
 }
