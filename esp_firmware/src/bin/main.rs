@@ -20,6 +20,7 @@ use esp_hal::spi::{
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{dma_buffers, main, mcpwm};
+use fatfs::{FileSystem, FsOptions};
 use panic_rtt_target as _;
 
 extern crate alloc;
@@ -90,12 +91,16 @@ fn main() -> ! {
     // let buf = as_mut_byte_array!(BUFFER, 10);
 
     let timg0 = TimerGroup::new(p.TIMG0);
-    let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(p.RNG)).unwrap();
+    // let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(p.RNG)).unwrap();
 
-    // sd.init().unwrap();
+    sd.init().expect("sd init");
+    let fs = FileSystem::new(sd, FsOptions::new()).expect("filesystem");
+    let root_dir = fs.root_dir();
+
+    println!("{}", root_dir.iter().count());
 
     loop {
-        // continue;
+        continue;
         for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
             println!("---Fin {}---", i);
             match data {
