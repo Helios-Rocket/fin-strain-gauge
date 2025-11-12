@@ -11,6 +11,7 @@ use esp_firmware::fin::{self, Fins, GpioPins, PwmPins, SpiPins};
 use esp_firmware::lsm::Lsm;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_hal::clock::CpuClock;
+use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::spi::{
     master::{Config, Spi},
     Mode,
@@ -18,8 +19,8 @@ use esp_hal::spi::{
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{dma_buffers, main, mcpwm};
-// use esp_radio;
-// use esp_rtos;
+use esp_radio::esp_now::{PeerInfo, BROADCAST_ADDRESS};
+use esp_rtos;
 use fatfs::{FileSystem, FsOptions, Read};
 use mbr_nostd::{MasterBootRecord, PartitionTable};
 use panic_rtt_target as _;
@@ -91,9 +92,6 @@ fn main() -> ! {
     // declare_aligned_dma_buffer!(BUFFER, 10);
     // let buf = as_mut_byte_array!(BUFFER, 10);
 
-    let timg0 = TimerGroup::new(p.TIMG0);
-    // let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(p.RNG)).unwrap();
-
     sd.init().expect("sd init");
     let mut mbr_buf = [0_u8; 512];
     sd.read(&mut mbr_buf).expect("read first block");
@@ -115,9 +113,65 @@ fn main() -> ! {
         str::from_utf8(&buf[0..n]).expect("convert to utf8")
     );
 
+    let timg0 = TimerGroup::new(p.TIMG0);
+    esp_rtos::start(timg0.timer0);
+
+    // Wifi stuff
+    let esp_radio_ctrl = esp_radio::init().unwrap();
+
+    let wifi = p.WIFI;
+    let (mut controller, interfaces) =
+        esp_radio::wifi::new(&esp_radio_ctrl, wifi, Default::default()).unwrap();
+    controller.set_mode(esp_radio::wifi::WifiMode::Sta).unwrap();
+    controller.start().unwrap();
+
+    let mut esp_now = interfaces.esp_now;
+    println!("esp-now version {}", esp_now.version().unwrap());
+    esp_now.set_channel(11).unwrap();
+    let mut next_send_time = Instant::now() + Duration::from_secs(5);
+
+    let mut next_read_time = Instant::now();
+
     loop {
-        let delay_start = Instant::now();
-        fins.read_all_data();
+        // Wifi Loop
+        let r = esp_now.receive();
+        if let Some(r) = r {
+            println!("Received {:?}", r);
+
+            if r.info.dst_address == BROADCAST_ADDRESS {
+                if !esp_now.peer_exists(&r.info.src_address) {
+                    esp_now
+                        .add_peer(PeerInfo {
+                            interface: esp_radio::esp_now::EspNowWifiInterface::Sta,
+                            peer_address: r.info.src_address,
+                            lmk: (None),
+                            channel: (None),
+                            encrypt: (false),
+                        })
+                        .unwrap();
+                }
+                let status = esp_now
+                    .send(&r.info.src_address, b"Hello Peer")
+                    .unwrap()
+                    .wait();
+                println!("Send hello to peer status: {:?}", status);
+            }
+        }
+
+        if Instant::now() >= next_send_time {
+            next_send_time = Instant::now() + Duration::from_secs(5);
+            println!("Send");
+            let status = esp_now
+                .send(&BROADCAST_ADDRESS, b"0123456789")
+                .unwrap()
+                .wait();
+            println!("Send broadcast status: {:?}", status);
+        }
+
+        if Instant::now() >= next_read_time {
+            next_read_time = Instant::now() + Duration::from_micros(100);
+            fins.read_all_data();
+        }
         // for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
         //     println!("---Fin {}---", i);
         //     match data {
@@ -131,6 +185,5 @@ fn main() -> ! {
         //         }
         //     }
         // }
-        while delay_start.elapsed() < Duration::from_micros(100) {}
     }
 }
