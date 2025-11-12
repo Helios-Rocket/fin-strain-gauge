@@ -2,6 +2,7 @@ use defmt::{error, info};
 use embedded_error::{mci, ImplError};
 use esp32s3::sdhost::RegisterBlock;
 use esp_hal::{
+    delay::Delay,
     peripherals,
     time::{Duration, Instant},
 };
@@ -314,7 +315,8 @@ impl<'d> SdHost<'d> {
 
         self.clear_status();
 
-        info!("Sending cmd {}", cmd_idx);
+        let start = Instant::now();
+        while start.elapsed() <= Duration::from_micros(1) {}
 
         self.regs().cmdarg().write(|w| unsafe { w.bits(arg) });
 
@@ -394,17 +396,20 @@ impl<'d> SdHost<'d> {
                 if int_status & response_status::CMD_MASK != 0 {
                     break;
                 } else if int_status & response_status::RE_MASK != 0 {
+                    error!("Read error");
                     return Err(SdError(mci::MciError::ReadError));
                 } else if int_status & response_status::EBE_MASK != 0 {
+                    error!("End bit");
                     return Err(SdError(mci::MciError::CommandError(
                         mci::CommandOrDataError::EndBit,
                     )));
                 } else if int_status & response_status::RTO_MASK != 0 {
-                    error!("RTO");
+                    error!("Response Timeout");
                     return Err(SdError(mci::MciError::CommandError(
                         mci::CommandOrDataError::Timeout,
                     )));
                 } else if int_status & response_status::RCRC_MASK != 0 {
+                    error!("Crc error");
                     return Err(SdError(mci::MciError::CommandError(
                         mci::CommandOrDataError::Crc,
                     )));

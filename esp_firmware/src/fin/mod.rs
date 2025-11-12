@@ -161,11 +161,9 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
     /// Read all adc data from each fin
     pub fn read_all_data(&mut self) -> [Result<[f64; 3], Error>; 4] {
         let mut ret = [Ok([0_f64; 3]); 4];
-        let start = Instant::now();
         for i in 0..4 {
             ret[i] = self.read_adc_data(i);
         }
-        info!("Reading took {}", start.elapsed());
 
         ret
     }
