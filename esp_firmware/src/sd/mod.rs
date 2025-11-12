@@ -1,4 +1,4 @@
-use defmt::{error, info, warn};
+use defmt::{error, info};
 use embedded_error::{mci, ImplError};
 use esp32s3::sdhost::RegisterBlock;
 use esp_hal::{
@@ -55,6 +55,8 @@ pub struct SdHost<'d> {
     capacity: u64,
     block_addr: usize,
     byte_addr: usize,
+    offset: u64,
+    end: u64,
     tx_buf: [u8; BLOCK_SIZE],
     rx_buf: [u8; BLOCK_SIZE],
     rx_valid: bool,
@@ -81,6 +83,8 @@ impl<'d> SdHost<'d> {
             capacity: 0,
             block_addr: 0,
             byte_addr: 0,
+            offset: 0,
+            end: 0,
             tx_buf: [0; BLOCK_SIZE],
             rx_buf: [0; BLOCK_SIZE],
             rx_valid: false,
@@ -88,6 +92,9 @@ impl<'d> SdHost<'d> {
     }
 
     pub fn init(&mut self) -> Result<(), SdError> {
+        // Reset the first card
+        self.regs().rst_n().write(|w| unsafe { w.bits(0) });
+        self.regs().rst_n().write(|w| unsafe { w.bits(0b01) });
         // let i = 10_u16 + 5_u8;
         // Set the first card to 4 bit mode
         self.regs()
@@ -239,6 +246,17 @@ impl<'d> SdHost<'d> {
         self.send_acmd(42, 0, ResponseConfig::R1)?;
         let _ = self.read_response()?;
 
+        self.regs().blksiz().write(|w| unsafe { w.bits(512) });
+        self.regs().bytcnt().write(|w| unsafe { w.bits(512) });
+
+        Ok(())
+    }
+
+    pub fn set_offset(&mut self, offset: u32, length: u32) -> Result<(), SdError> {
+        self.offset = offset as u64 * 512;
+        self.end = self.offset + length as u64 * 512;
+        self.seek(SeekFrom::Start(0))?;
+
         Ok(())
     }
 
@@ -268,6 +286,16 @@ impl<'d> SdHost<'d> {
         // });
     }
 
+    fn clear_status(&mut self) {
+        // Clear status bits (writing 1 to a bit clears it)
+        self.regs().rintsts().modify(|r, w| unsafe {
+            w.sdio_interrupt_raw()
+                .bits(r.sdio_interrupt_raw().bits())
+                .int_status_raw()
+                .bits(r.int_status_raw().bits())
+        });
+    }
+
     fn send_cmd(
         &mut self,
         cmd_idx: u8,
@@ -283,6 +311,10 @@ impl<'d> SdHost<'d> {
                 return Err(SdError(mci::MciError::Impl(ImplError::TimedOut)));
             }
         }
+
+        self.clear_status();
+
+        info!("Sending cmd {}", cmd_idx);
 
         self.regs().cmdarg().write(|w| unsafe { w.bits(arg) });
 
@@ -358,11 +390,8 @@ impl<'d> SdHost<'d> {
             let status_reg = self.regs().rintsts().read();
             if status_reg.int_status_raw().bits() != 0 {
                 let int_status = status_reg.int_status_raw().bits();
-                let status = self.regs().status().read();
 
-                if int_status & response_status::CMD_MASK != 0
-                    && status.command_fsm_states().bits() == 0
-                {
+                if int_status & response_status::CMD_MASK != 0 {
                     break;
                 } else if int_status & response_status::RE_MASK != 0 {
                     return Err(SdError(mci::MciError::ReadError));
@@ -371,6 +400,7 @@ impl<'d> SdHost<'d> {
                         mci::CommandOrDataError::EndBit,
                     )));
                 } else if int_status & response_status::RTO_MASK != 0 {
+                    error!("RTO");
                     return Err(SdError(mci::MciError::CommandError(
                         mci::CommandOrDataError::Timeout,
                     )));
@@ -388,13 +418,15 @@ impl<'d> SdHost<'d> {
             }
         }
 
-        // Clear status bits (writing 1 to a bit clears it)
-        self.regs().rintsts().modify(|r, w| unsafe {
-            w.sdio_interrupt_raw()
-                .bits(r.sdio_interrupt_raw().bits())
-                .int_status_raw()
-                .bits(r.int_status_raw().bits())
-        });
+        self.clear_status();
+
+        let start = Instant::now();
+        while self.regs().status().read().command_fsm_states() != 0 {
+            if start.elapsed() >= TIMEOUT {
+                error!("Waiting for cmd state machine to go idle");
+                return Err(SdError(mci::MciError::Impl(ImplError::TimedOut)));
+            }
+        }
 
         // let start = Instant::now();
         // while Instant::now() - start <= Duration::from_millis(1) {}
@@ -461,17 +493,9 @@ impl<'d> SdHost<'d> {
                 let int_status = status_reg.int_status_raw().bits();
                 let status = self.regs().status().read();
 
-                info!(
-                    "fifo full: {}, fifo empty: {}, fifo count: {}",
-                    status.fifo_full().bit(),
-                    status.fifo_empty().bit(),
-                    status.fifo_count().bits()
-                );
-
                 if int_status & response_status::DTO_MASK != 0
                     && status.command_fsm_states().bits() == 0
                 {
-                    info!("DTO after {}", start.elapsed());
                     break;
                 }
             }
@@ -489,10 +513,14 @@ impl<'d> SdHost<'d> {
                 .bits(r.int_status_raw().bits())
         });
 
-        let fifo_addr = self.regs().buffifo().read().bits();
-        let fifo_ptr = fifo_addr as *const u8;
+        for i in 0..(512 / 4) {
+            let word = self.regs().buffifo().read().bits();
+            self.rx_buf[4 * i..4 * (i + 1)].copy_from_slice(&word.to_ne_bytes());
+        }
+        // let fifo_addr = self.regs().buffifo().read().bits();
+        // let fifo_ptr = fifo_addr as *const u8;
 
-        info!("addr: {}", fifo_addr);
+        // info!("addr: {}", fifo_addr);
         // info!("Probably about to explode");
         // unsafe {
         //     self.rx_buf[0..1].copy_from_slice(core::slice::from_raw_parts(fifo_ptr, 1));
@@ -531,15 +559,15 @@ impl<'d> IoBase for SdHost<'d> {
 impl<'d> Read for SdHost<'d> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let mut n = 0;
-        while n < buf.len() {
+        let len = buf.len();
+        while n < len {
             if !self.rx_valid {
                 self.read_block()?;
             }
 
-            let len = buf.len();
-
             if len - n < self.rx_buf.len() - self.byte_addr {
                 buf[n..].copy_from_slice(&self.rx_buf[self.byte_addr..self.byte_addr + len - n]);
+                self.byte_addr += len - n;
                 n = len;
             } else {
                 buf[n..n + self.rx_buf.len() - self.byte_addr]
@@ -558,12 +586,12 @@ impl<'d> Read for SdHost<'d> {
 impl<'d> Seek for SdHost<'d> {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
         let abs_pos = match pos {
-            SeekFrom::Start(pos) => pos as i64,
-            SeekFrom::End(pos) => self.capacity as i64 + pos,
+            SeekFrom::Start(pos) => pos as i64 + self.offset as i64,
+            SeekFrom::End(pos) => self.end as i64 + pos,
             SeekFrom::Current(pos) => self.get_byte_position() as i64 + pos,
         };
 
-        if abs_pos < 0 || abs_pos > self.capacity as i64 {
+        if abs_pos < 0 || abs_pos > self.end as i64 {
             return Err(SdError(mci::MciError::Impl(ImplError::OutOfMemory)));
         }
 
@@ -584,6 +612,6 @@ impl<'d> Write for SdHost<'d> {
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        todo!()
+        Ok(())
     }
 }

@@ -6,8 +6,6 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use core::mem;
-
 use defmt::{error, info, println};
 use esp_firmware::fin::{self, Fins, GpioPins, PwmPins, SpiPins};
 use esp_firmware::lsm::Lsm;
@@ -20,7 +18,10 @@ use esp_hal::spi::{
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{dma_buffers, main, mcpwm};
-use fatfs::{FileSystem, FsOptions};
+// use esp_radio;
+// use esp_rtos;
+use fatfs::{FileSystem, FsOptions, Read};
+use mbr_nostd::{MasterBootRecord, PartitionTable};
 use panic_rtt_target as _;
 
 extern crate alloc;
@@ -94,27 +95,42 @@ fn main() -> ! {
     // let _init = esp_wifi::init(timg0.timer0, esp_hal::rng::Rng::new(p.RNG)).unwrap();
 
     sd.init().expect("sd init");
+    let mut mbr_buf = [0_u8; 512];
+    sd.read(&mut mbr_buf).expect("read first block");
+    let mbr = MasterBootRecord::from_bytes(&mbr_buf).expect("MBR");
+    let partition = mbr.partition_table_entries()[0];
+    sd.set_offset(partition.logical_block_address, partition.sector_count)
+        .expect("set offset");
     let fs = FileSystem::new(sd, FsOptions::new()).expect("filesystem");
     let root_dir = fs.root_dir();
 
     println!("{}", root_dir.iter().count());
 
+    let mut foo = root_dir.open_file("FOO.TXT").expect("open");
+    let mut buf = [0_u8; 1024];
+    let n = foo.read(&mut buf).expect("read");
+
+    println!(
+        "File contents: {}",
+        str::from_utf8(&buf[0..n]).expect("convert to utf8")
+    );
+
     loop {
-        continue;
-        for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
-            println!("---Fin {}---", i);
-            match data {
-                Ok(data) => {
-                    println!("temp: {}", esp_firmware::fin::convert_volts2temp(data[0]));
-                    println!("volts left: {}", data[1]);
-                    println!("volts right: {}", data[2]);
-                }
-                Err(fin::Error::CRC { computed }) => {
-                    error!("!!! CRC Failed, got remainder {}", computed)
-                }
-            }
-        }
         let delay_start = Instant::now();
+        fins.read_all_data();
+        // for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
+        //     println!("---Fin {}---", i);
+        //     match data {
+        //         Ok(data) => {
+        //             println!("temp: {}", esp_firmware::fin::convert_volts2temp(data[0]));
+        //             println!("volts left: {}", data[1]);
+        //             println!("volts right: {}", data[2]);
+        //         }
+        //         Err(fin::Error::CRC { computed }) => {
+        //             error!("!!! CRC Failed, got remainder {}", computed)
+        //         }
+        //     }
+        // }
         while delay_start.elapsed() < Duration::from_micros(100) {}
     }
 }
