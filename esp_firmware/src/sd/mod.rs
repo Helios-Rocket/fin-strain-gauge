@@ -316,7 +316,7 @@ impl<'d> SdHost<'d> {
         self.clear_status();
 
         let start = Instant::now();
-        while start.elapsed() <= Duration::from_micros(1) {}
+        while start.elapsed() <= Duration::from_micros(5) {}
 
         self.regs().cmdarg().write(|w| unsafe { w.bits(arg) });
 
