@@ -6,11 +6,12 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use alloc::format;
 use defmt::{error, info, println};
 use esp_firmware::fin::{self, Fins, GpioPins, PwmPins, SpiPins};
 use esp_firmware::lsm::Lsm;
-use esp_firmware::wifi::Wifi; 
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
+use esp_firmware::wifi::Wifi;
 use esp_hal::clock::CpuClock;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::spi::{
@@ -20,7 +21,7 @@ use esp_hal::spi::{
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{dma_buffers, main, mcpwm};
-use fatfs::{FileSystem, FsOptions, Read};
+use fatfs::{FileSystem, FsOptions, Read, Write};
 use mbr_nostd::{MasterBootRecord, PartitionTable};
 use panic_rtt_target as _;
 
@@ -92,16 +93,11 @@ fn main() -> ! {
     // let buf = as_mut_byte_array!(BUFFER, 10);
 
     sd.init().expect("sd init");
-    let mut mbr_buf = [0_u8; 512];
-    sd.read(&mut mbr_buf).expect("read first block");
-    let mbr = MasterBootRecord::from_bytes(&mbr_buf).expect("MBR");
-    let partition = mbr.partition_table_entries()[0];
-    sd.set_offset(partition.logical_block_address, partition.sector_count)
-        .expect("set offset");
     let fs = FileSystem::new(sd, FsOptions::new()).expect("filesystem");
+
     let root_dir = fs.root_dir();
 
-    println!("{}", root_dir.iter().count());
+    println!("num items {}", root_dir.iter().count());
 
     let mut foo = root_dir.open_file("FOO.TXT").expect("open");
     let mut buf = [0_u8; 1024];
@@ -116,8 +112,10 @@ fn main() -> ! {
     esp_rtos::start(timg0.timer0);
     let esp_radio_ctrl = esp_radio::init().unwrap();
 
-    let mut wifi = Wifi::new(p.WIFI, &esp_radio_ctrl); 
+    let mut wifi = Wifi::new(p.WIFI, &esp_radio_ctrl);
     let mut next_send_time = Instant::now() + Duration::from_secs(5);
+
+    let mut count = 0;
 
     loop {
         wifi.receive_data();
@@ -125,8 +123,16 @@ fn main() -> ! {
         if Instant::now() >= next_send_time {
             wifi.send_data();
             next_send_time = Instant::now() + Duration::from_secs(5);
+            println!(
+                "Length of count bytes thing {}",
+                format!("{count}").as_bytes().len()
+            );
+            foo.write(format!("{count}").as_bytes())
+                .expect("buf not writing :(");
+            count += 1;
+            foo.flush().unwrap();
         }
-        
+
         // for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
         //     println!("---Fin {}---", i);
         //     match data {

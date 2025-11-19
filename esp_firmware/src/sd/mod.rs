@@ -1,6 +1,6 @@
-use defmt::{error, info};
+use defmt::{error, info, println};
 use embedded_error::{mci, ImplError};
-use esp32s3::sdhost::RegisterBlock;
+use esp32s3::{aes::block_num, sdhost::RegisterBlock};
 use esp_hal::{
     delay::Delay,
     peripherals,
@@ -11,7 +11,8 @@ pub mod dma;
 pub mod pins;
 pub mod response;
 
-use fatfs::{IoBase, IoError, Read, Seek, SeekFrom, Write};
+use fatfs::{FileSystem, FsOptions, IoBase, IoError, Read, Seek, SeekFrom, Write};
+use mbr_nostd::{MasterBootRecord, PartitionTable};
 use pins::Pins;
 use response::{ResponseConfig, ResponseLength};
 
@@ -58,9 +59,9 @@ pub struct SdHost<'d> {
     byte_addr: usize,
     offset: u64,
     end: u64,
-    tx_buf: [u8; BLOCK_SIZE],
-    rx_buf: [u8; BLOCK_SIZE],
+    buf: [u8; BLOCK_SIZE],
     rx_valid: bool,
+    buf_modified: bool,
 }
 
 impl<'d> SdHost<'d> {
@@ -86,8 +87,8 @@ impl<'d> SdHost<'d> {
             byte_addr: 0,
             offset: 0,
             end: 0,
-            tx_buf: [0; BLOCK_SIZE],
-            rx_buf: [0; BLOCK_SIZE],
+            buf: [0; BLOCK_SIZE],
+            buf_modified: false,
             rx_valid: false,
         }
     }
@@ -249,6 +250,11 @@ impl<'d> SdHost<'d> {
 
         self.regs().blksiz().write(|w| unsafe { w.bits(512) });
         self.regs().bytcnt().write(|w| unsafe { w.bits(512) });
+
+        self.read_block()?;
+        let mbr = MasterBootRecord::from_bytes(&self.buf).expect("MBR");
+        let partition = mbr.partition_table_entries()[0];
+        self.set_offset(partition.logical_block_address, partition.sector_count)?;
 
         Ok(())
     }
@@ -464,6 +470,17 @@ impl<'d> SdHost<'d> {
     }
 
     fn read_block(&mut self) -> Result<(), SdError> {
+        //info!("Entered read block");
+        let mut update = Instant::now();
+        while self.regs().status().read().data_state_mc_busy().bit() {
+            if update.elapsed() > Duration::from_millis(200) {
+                update = Instant::now();
+                // println!(
+                //     "Words in FIFO: {}",
+                //     self.regs().status().read().fifo_count().bits()
+                // );
+            }
+        }
         let start = Instant::now();
         while self.regs().status().read().data_busy().bit() {
             if start.elapsed() >= TIMEOUT {
@@ -520,7 +537,7 @@ impl<'d> SdHost<'d> {
 
         for i in 0..(512 / 4) {
             let word = self.regs().buffifo().read().bits();
-            self.rx_buf[4 * i..4 * (i + 1)].copy_from_slice(&word.to_ne_bytes());
+            self.buf[4 * i..4 * (i + 1)].copy_from_slice(&word.to_ne_bytes());
         }
         // let fifo_addr = self.regs().buffifo().read().bits();
         // let fifo_ptr = fifo_addr as *const u8;
@@ -538,6 +555,9 @@ impl<'d> SdHost<'d> {
     }
 
     fn write_block(&mut self) -> Result<(), SdError> {
+        //info!("Entered write_block");
+        return Ok(());
+        while self.regs().status().read().data_state_mc_busy().bit() {}
         let start = Instant::now();
         while self.regs().status().read().data_busy().bit() {
             if start.elapsed() >= TIMEOUT {
@@ -547,12 +567,29 @@ impl<'d> SdHost<'d> {
             }
         }
 
+        for i in 0..(512 / 4) {
+            let word = u32::from_ne_bytes([
+                self.buf[i],
+                self.buf[i + 1],
+                self.buf[i + 2],
+                self.buf[i + 3],
+            ]);
+            self.regs().buffifo().write(|w| unsafe { w.bits(word) });
+            // println!(
+            //     "Words in FIFO: {}",
+            //     self.regs().status().read().fifo_count().bits()
+            // );
+        }
+
         self.send_cmd(
             24,
             self.block_addr as u32,
             ResponseConfig::R1,
             CmdConfig::Data { write: true },
         )?;
+
+        self.buf_modified = false;
+
         Ok(())
     }
 }
@@ -563,6 +600,7 @@ impl<'d> IoBase for SdHost<'d> {
 
 impl<'d> Read for SdHost<'d> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+        //info!("Entered read fn");
         let mut n = 0;
         let len = buf.len();
         while n < len {
@@ -570,14 +608,14 @@ impl<'d> Read for SdHost<'d> {
                 self.read_block()?;
             }
 
-            if len - n < self.rx_buf.len() - self.byte_addr {
-                buf[n..].copy_from_slice(&self.rx_buf[self.byte_addr..self.byte_addr + len - n]);
+            if len - n < self.buf.len() - self.byte_addr {
+                buf[n..].copy_from_slice(&self.buf[self.byte_addr..self.byte_addr + len - n]);
                 self.byte_addr += len - n;
                 n = len;
             } else {
-                buf[n..n + self.rx_buf.len() - self.byte_addr]
-                    .copy_from_slice(&self.rx_buf[self.byte_addr..]);
-                n += self.rx_buf.len() - self.byte_addr;
+                buf[n..n + self.buf.len() - self.byte_addr]
+                    .copy_from_slice(&self.buf[self.byte_addr..]);
+                n += self.buf.len() - self.byte_addr;
                 self.byte_addr = 0;
                 self.block_addr += 1;
                 self.rx_valid = false;
@@ -590,6 +628,7 @@ impl<'d> Read for SdHost<'d> {
 
 impl<'d> Seek for SdHost<'d> {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
+        //info!("Entered seeek");
         let abs_pos = match pos {
             SeekFrom::Start(pos) => pos as i64 + self.offset as i64,
             SeekFrom::End(pos) => self.end as i64 + pos,
@@ -602,7 +641,14 @@ impl<'d> Seek for SdHost<'d> {
 
         let new_block_addr: usize = (abs_pos / 512) as usize;
         self.byte_addr = (abs_pos - (new_block_addr as i64) * 512) as usize;
+        // println!(
+        //     "Position in Disk {} ({}, {})",
+        //     abs_pos, new_block_addr, self.byte_addr
+        // );
         if new_block_addr != self.block_addr {
+            if self.buf_modified {
+                self.write_block()?;
+            }
             self.rx_valid = false;
             self.block_addr = new_block_addr;
         }
@@ -613,10 +659,40 @@ impl<'d> Seek for SdHost<'d> {
 
 impl<'d> Write for SdHost<'d> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        todo!()
+        //println!("Length of Buffer {}", buf.len());
+        let mut n = 0;
+        let len = self.buf.len();
+        while n < buf.len() {
+            // println!("In write loop");
+            if !self.rx_valid {
+                self.read_block()?;
+            }
+            if buf.len() - n < len - self.byte_addr {
+                self.buf[self.byte_addr..self.byte_addr + buf.len() - n].copy_from_slice(&buf[n..]);
+                self.byte_addr += buf.len() - n;
+                n = buf.len();
+                self.buf_modified = true;
+                break;
+            } else {
+                self.buf[self.byte_addr..].copy_from_slice(&buf[n..len - self.byte_addr]);
+                self.buf_modified = true;
+                self.flush()?;
+                self.rx_valid = false;
+                self.block_addr += 1;
+                n += len - self.byte_addr;
+                self.byte_addr = 0;
+            }
+        }
+
+        Ok(n)
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
+        //info!("Entered flush fn");
+        if self.buf_modified {
+            self.write_block()?;
+        }
+
         Ok(())
     }
 }
