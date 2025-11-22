@@ -1,5 +1,9 @@
-use defmt::Format;
-use esp_hal::{spi::master::Spi, Blocking};
+use defmt::{info, Format};
+use esp_hal::{
+    gpio::{Level, Output, OutputConfig, OutputPin},
+    spi::master::Spi,
+    Blocking,
+};
 
 const CTRL1_XL_ADDR: u8 = 0x10;
 const CTRL2_G_ADDR: u8 = 0x11;
@@ -13,6 +17,7 @@ const G_ODR_166kHZ: u8 = 0b1000;
 
 pub struct Lsm<'a> {
     spi: Spi<'a, Blocking>,
+    cs: Output<'a>,
 }
 
 #[derive(Format)]
@@ -26,29 +31,38 @@ pub struct Data {
 }
 
 impl<'a> Lsm<'a> {
-    pub fn new(spi: Spi<'a, Blocking>) -> Self {
+    pub fn new(spi: Spi<'a, Blocking>, cs_pin: impl OutputPin + 'a) -> Self {
         // Write the accel and gyro control registers
         // Set max g's
         // Enable the axis + set ODR
-        let mut this = Self{spi}; 
+        let mut this = Self {
+            spi,
+            cs: Output::new(cs_pin, Level::High, OutputConfig::default()),
+        };
+
         this.write_register(CTRL1_XL_ADDR, XL_ODR_166kHZ << 4 | XL_FS_32G << 2);
         this.write_register(CTRL2_G_ADDR, G_ODR_166kHZ << 4 | G_FS_32G << 2);
 
-        // let accel_command: u8 = 1_u8 << 7;
-        // write_register(self, 0x10h, )
-
-        this 
+        this
     }
 
     fn read_register(&mut self, addr: u8, buf: &mut [u8]) {
         let command: u8 = 1 << 7 | addr;
-        self.spi.write(&[command]).unwrap();
+        self.cs.set_low();
+
+        self.spi.write(&mut [command]).unwrap();
         self.spi.read(buf).unwrap();
+
+        self.cs.set_high();
     }
 
     fn write_register(&mut self, addr: u8, data: u8) {
         let command: u16 = (addr as u16) << 8 | (data as u16);
+        self.cs.set_low();
+
         self.spi.write(&command.to_be_bytes()).unwrap();
+
+        self.cs.set_high();
     }
 
     pub fn read_lsm(&mut self) -> Data {

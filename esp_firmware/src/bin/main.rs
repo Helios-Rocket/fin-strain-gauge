@@ -49,10 +49,9 @@ fn main() -> ! {
     .unwrap()
     .with_sck(p.GPIO18)
     .with_mosi(p.GPIO37)
-    .with_miso(p.GPIO36)
-    .with_cs(p.GPIO8);
+    .with_miso(p.GPIO36);
 
-    let mut lsm = Lsm::new(spi);
+    let mut lsm = Lsm::new(spi, p.GPIO8);
     let mut sd = SdHost::new(
         &p.SYSTEM,
         p.SDHOST,
