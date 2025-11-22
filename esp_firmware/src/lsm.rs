@@ -20,14 +20,24 @@ pub struct Lsm<'a> {
     cs: Output<'a>,
 }
 
-#[derive(Format)]
+#[derive(Format, Copy, Clone)]
+pub struct RawData {
+    accel_x: i16,
+    accel_y: i16,
+    accel_z: i16,
+    gyro_x: i16,
+    gyro_y: i16,
+    gyro_z: i16,
+}
+
+#[derive(Format, Clone, Copy, Debug)]
 pub struct Data {
-    accel_x: u16,
-    accel_y: u16,
-    accel_z: u16,
-    gyro_x: u16,
-    gyro_y: u16,
-    gyro_z: u16,
+    accel_x: f32,
+    accel_y: f32,
+    accel_z: f32,
+    gyro_x: f32,
+    gyro_y: f32,
+    gyro_z: f32,
 }
 
 impl<'a> Lsm<'a> {
@@ -65,17 +75,26 @@ impl<'a> Lsm<'a> {
         self.cs.set_high();
     }
 
-    pub fn read_lsm(&mut self) -> Data {
+    pub fn read_lsm(&mut self) -> (RawData, Data) {
         let mut buf = [0_u8; 12];
         self.read_register(OUT_REG_START_ADDR, &mut buf);
 
-        Data {
-            gyro_x: (buf[0] as u16) | (buf[1] as u16) << 8,
-            gyro_y: (buf[2] as u16) | (buf[3] as u16) << 8,
-            gyro_z: (buf[4] as u16) | (buf[5] as u16) << 8,
-            accel_x: (buf[6] as u16) | (buf[7] as u16) << 8,
-            accel_y: (buf[8] as u16) | (buf[9] as u16) << 8,
-            accel_z: (buf[10] as u16) | (buf[11] as u16) << 8,
-        }
+        let raw_data = RawData {
+            gyro_x: (buf[0] as i16) | (buf[1] as i16) << 8,
+            gyro_y: (buf[2] as i16) | (buf[3] as i16) << 8,
+            gyro_z: (buf[4] as i16) | (buf[5] as i16) << 8,
+            accel_x: (buf[6] as i16) | (buf[7] as i16) << 8,
+            accel_y: (buf[8] as i16) | (buf[9] as i16) << 8,
+            accel_z: (buf[10] as i16) | (buf[11] as i16) << 8,
+        };
+
+        (raw_data, Data {
+            gyro_x: raw_data.gyro_x as f32 * 70.0/1000.0,
+            gyro_y: raw_data.gyro_y as f32 * 70.0/1000.0, 
+            gyro_z: raw_data.gyro_z as f32 * 70.0/1000.0,
+            accel_x: raw_data.accel_x as f32 * 0.976/1000.0 * 9.81,
+            accel_y: raw_data.accel_y as f32 * 0.976/1000.0 * 9.81,
+            accel_z: raw_data.accel_z as f32 * 0.976/1000.0 * 9.81,
+        })
     }
 }

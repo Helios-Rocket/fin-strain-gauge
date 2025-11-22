@@ -79,47 +79,26 @@ fn main() -> ! {
         p.MCPWM0,
     );
 
-    // let (rx_buf, rx_desc, tx_buf, tx_desc) = dma_buffers!(10);
-    // rx_buf[0] = 5;
+    info!("START OF SD CARD STUFF");
 
-    // let start = Instant::now();
+    sd.init().expect("sd init");
+    let fs = FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem");
 
-    // mem::swap(rx_buf, tx_buf);
+    let root_dir = fs.root_dir();
 
-    // info!("Took {}", Instant::now() - start);
+    println!("num items {}", root_dir.iter().count());
 
-    // declare_aligned_dma_buffer!(BUFFER, 10);
-    // let buf = as_mut_byte_array!(BUFFER, 10);
+    let mut foo = root_dir.open_file("FOO.TXT").expect("open");
+    let mut buf = [0_u8; 1024];
+    let n = foo.read(&mut buf).expect("read");
 
-    // info!("START OF SD CARD STUFF");
+    error!(
+        "File contents: {}",
+        str::from_utf8(&buf[0..n]).expect("convert to utf8")
+    );
 
-    // sd.init().expect("sd init");
-    // let fs = FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem");
-    // {
-    //     let root_dir = fs.root_dir();
-
-    //     println!("num items {}", root_dir.iter().count());
-
-    //     let mut foo = root_dir.open_file("FOO.TXT").expect("open");
-    //     let mut buf = [0_u8; 1024];
-    //     let n = foo.read(&mut buf).expect("read");
-
-    //     error!(
-    //         "File contents: {}",
-    //         str::from_utf8(&buf[0..n]).expect("convert to utf8")
-    //     );
-
-    //     let start = Instant::now();
-    //     while Instant::now() < start + Duration::from_secs(5) {}
-
-    //     let mut count = 0;
-
-    //     foo.write(format!("{count}").as_bytes())
-    //         .expect("buf not writing :(");
-    //     count += 1;
-    //     foo.flush().unwrap();
-    // }
-    // fs.unmount();
+    let start = Instant::now();
+    while Instant::now() < start + Duration::from_secs(5) {}
 
     // let timg0 = TimerGroup::new(p.TIMG0);
     // esp_rtos::start(timg0.timer0);
@@ -127,12 +106,16 @@ fn main() -> ! {
 
     // let mut wifi = Wifi::new(p.WIFI, &esp_radio_ctrl);
     // let mut next_send_time = Instant::now() + Duration::from_secs(5);
+
     let mut start = Instant::now();
     loop {
         // wifi.receive_data();
         if start.elapsed() >= Duration::from_millis(500) {
             start = Instant::now();
-            println!("Lsm data: {}", lsm.read_lsm());
+            println!("Lsm data: {}", lsm.read_lsm().1);
+
+            foo.write(format!("{:?}\n", lsm.read_lsm().1).as_bytes()).unwrap(); 
+            foo.flush().unwrap(); 
         }
     }
 
