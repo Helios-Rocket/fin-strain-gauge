@@ -555,8 +555,8 @@ impl<'d> SdHost<'d> {
     }
 
     fn write_block(&mut self) -> Result<(), SdError> {
-        //info!("Entered write_block");
-        return Ok(());
+        info!("Entered write_block");
+
         while self.regs().status().read().data_state_mc_busy().bit() {}
         let start = Instant::now();
         while self.regs().status().read().data_busy().bit() {
@@ -588,6 +588,8 @@ impl<'d> SdHost<'d> {
             CmdConfig::Data { write: true },
         )?;
 
+        self.read_response()?;
+
         self.buf_modified = false;
 
         Ok(())
@@ -600,39 +602,45 @@ impl<'d> IoBase for SdHost<'d> {
 
 impl<'d> Read for SdHost<'d> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        //info!("Entered read fn");
-        let mut n = 0;
-        let len = buf.len();
-        while n < len {
-            if !self.rx_valid {
-                self.read_block()?;
-            }
+        info!("Entered read fn");
 
-            if len - n < self.buf.len() - self.byte_addr {
-                buf[n..].copy_from_slice(&self.buf[self.byte_addr..self.byte_addr + len - n]);
-                self.byte_addr += len - n;
-                n = len;
-            } else {
-                buf[n..n + self.buf.len() - self.byte_addr]
-                    .copy_from_slice(&self.buf[self.byte_addr..]);
-                n += self.buf.len() - self.byte_addr;
-                self.byte_addr = 0;
-                self.block_addr += 1;
-                self.rx_valid = false;
-            }
+        if !self.rx_valid {
+            self.read_block()?;
         }
 
-        Ok(n)
+        let read_amount = buf.len().min(self.buf.len() - self.byte_addr);
+
+        buf[0..read_amount]
+            .copy_from_slice(&self.buf[self.byte_addr..self.byte_addr + read_amount]);
+        self.byte_addr += read_amount;
+
+        if self.byte_addr == BLOCK_SIZE {
+            self.byte_addr = 0;
+            self.block_addr += 1;
+            self.rx_valid = false;
+        }
+        //println!("Buffer {}", buf);
+        Ok(read_amount)
     }
 }
 
 impl<'d> Seek for SdHost<'d> {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
-        //info!("Entered seeek");
+        info!("Entered seeek");
         let abs_pos = match pos {
-            SeekFrom::Start(pos) => pos as i64 + self.offset as i64,
-            SeekFrom::End(pos) => self.end as i64 + pos,
-            SeekFrom::Current(pos) => self.get_byte_position() as i64 + pos,
+            SeekFrom::Start(pos) => {
+                println!("Pos from start {}", pos);
+                println!("wtf is happening..."); 
+                pos as i64 + self.offset as i64
+            }
+            SeekFrom::End(pos) => {
+                println!("Pos from end {}", pos);
+                self.end as i64 + pos
+            }
+            SeekFrom::Current(pos) => {
+                println!("Pos from current {}", pos);
+                self.get_byte_position() as i64 + pos
+            }
         };
 
         if abs_pos < 0 || abs_pos > self.end as i64 {
@@ -641,10 +649,10 @@ impl<'d> Seek for SdHost<'d> {
 
         let new_block_addr: usize = (abs_pos / 512) as usize;
         self.byte_addr = (abs_pos - (new_block_addr as i64) * 512) as usize;
-        // println!(
-        //     "Position in Disk {} ({}, {})",
-        //     abs_pos, new_block_addr, self.byte_addr
-        // );
+        println!(
+            "Position in Disk {} ({}, {})",
+            abs_pos, new_block_addr, self.byte_addr
+        );
         if new_block_addr != self.block_addr {
             if self.buf_modified {
                 self.write_block()?;
@@ -653,42 +661,38 @@ impl<'d> Seek for SdHost<'d> {
             self.block_addr = new_block_addr;
         }
 
-        Ok(abs_pos as u64)
+        Ok(abs_pos as u64 - self.offset)
     }
 }
 
 impl<'d> Write for SdHost<'d> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         //println!("Length of Buffer {}", buf.len());
-        let mut n = 0;
-        let len = self.buf.len();
-        while n < buf.len() {
-            // println!("In write loop");
-            if !self.rx_valid {
-                self.read_block()?;
-            }
-            if buf.len() - n < len - self.byte_addr {
-                self.buf[self.byte_addr..self.byte_addr + buf.len() - n].copy_from_slice(&buf[n..]);
-                self.byte_addr += buf.len() - n;
-                n = buf.len();
-                self.buf_modified = true;
-                break;
-            } else {
-                self.buf[self.byte_addr..].copy_from_slice(&buf[n..len - self.byte_addr]);
-                self.buf_modified = true;
-                self.flush()?;
-                self.rx_valid = false;
-                self.block_addr += 1;
-                n += len - self.byte_addr;
-                self.byte_addr = 0;
-            }
+        //println!("Buffer {}", buf);
+
+        //println!("In write loop");
+        if !self.rx_valid {
+            self.read_block()?;
         }
 
-        Ok(n)
+        let write_amount = buf.len().min(self.buf.len() - self.byte_addr);
+
+        self.buf[self.byte_addr..self.byte_addr + write_amount]
+            .copy_from_slice(&buf[0..write_amount]);
+        self.byte_addr += write_amount;
+        self.buf_modified = true;
+
+        if self.byte_addr == BLOCK_SIZE {
+            self.flush()?;
+            self.rx_valid = false;
+            self.block_addr += 1;
+            self.byte_addr = 0;
+        }
+        Ok(write_amount)
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        //info!("Entered flush fn");
+        info!("Entered flush fn");
         if self.buf_modified {
             self.write_block()?;
         }

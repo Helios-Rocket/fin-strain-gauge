@@ -92,21 +92,36 @@ fn main() -> ! {
     // declare_aligned_dma_buffer!(BUFFER, 10);
     // let buf = as_mut_byte_array!(BUFFER, 10);
 
+
+    info!("START OF SD CARD STUFF"); 
+
     sd.init().expect("sd init");
-    let fs = FileSystem::new(sd, FsOptions::new()).expect("filesystem");
+    let fs = FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem");
+    {
+        let root_dir = fs.root_dir();
 
-    let root_dir = fs.root_dir();
+        println!("num items {}", root_dir.iter().count());
 
-    println!("num items {}", root_dir.iter().count());
+        let mut foo = root_dir.open_file("FOO.TXT").expect("open");
+        let mut buf = [0_u8; 1024];
+        let n = foo.read(&mut buf).expect("read");
 
-    let mut foo = root_dir.open_file("FOO.TXT").expect("open");
-    let mut buf = [0_u8; 1024];
-    let n = foo.read(&mut buf).expect("read");
+        error!(
+            "File contents: {}",
+            str::from_utf8(&buf[0..n]).expect("convert to utf8")
+        );
 
-    println!(
-        "File contents: {}",
-        str::from_utf8(&buf[0..n]).expect("convert to utf8")
-    );
+        let start = Instant::now();
+        while Instant::now() < start + Duration::from_secs(5) {}
+
+        let mut count = 0;
+
+        foo.write(format!("{count}").as_bytes())
+            .expect("buf not writing :(");
+        count += 1;
+        foo.flush().unwrap();
+    }
+    fs.unmount();
 
     let timg0 = TimerGroup::new(p.TIMG0);
     esp_rtos::start(timg0.timer0);
@@ -115,22 +130,16 @@ fn main() -> ! {
     let mut wifi = Wifi::new(p.WIFI, &esp_radio_ctrl);
     let mut next_send_time = Instant::now() + Duration::from_secs(5);
 
-    let mut count = 0;
-
     loop {
         wifi.receive_data();
 
         if Instant::now() >= next_send_time {
             wifi.send_data();
             next_send_time = Instant::now() + Duration::from_secs(5);
-            println!(
-                "Length of count bytes thing {}",
-                format!("{count}").as_bytes().len()
-            );
-            foo.write(format!("{count}").as_bytes())
-                .expect("buf not writing :(");
-            count += 1;
-            foo.flush().unwrap();
+            // println!(
+            //     "Length of count bytes thing {}",
+            //     format!("{count}").as_bytes().len()
+            // );
         }
 
         // for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
