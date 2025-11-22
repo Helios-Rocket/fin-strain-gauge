@@ -8,6 +8,7 @@
 
 use alloc::format;
 use defmt::{error, info, println};
+use esp32s3::rtc_cntl::state0;
 use esp_firmware::fin::{self, Fins, GpioPins, PwmPins, SpiPins};
 use esp_firmware::lsm::Lsm;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
@@ -92,68 +93,72 @@ fn main() -> ! {
     // declare_aligned_dma_buffer!(BUFFER, 10);
     // let buf = as_mut_byte_array!(BUFFER, 10);
 
+    // info!("START OF SD CARD STUFF");
 
-    info!("START OF SD CARD STUFF"); 
+    // sd.init().expect("sd init");
+    // let fs = FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem");
+    // {
+    //     let root_dir = fs.root_dir();
 
-    sd.init().expect("sd init");
-    let fs = FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem");
-    {
-        let root_dir = fs.root_dir();
+    //     println!("num items {}", root_dir.iter().count());
 
-        println!("num items {}", root_dir.iter().count());
+    //     let mut foo = root_dir.open_file("FOO.TXT").expect("open");
+    //     let mut buf = [0_u8; 1024];
+    //     let n = foo.read(&mut buf).expect("read");
 
-        let mut foo = root_dir.open_file("FOO.TXT").expect("open");
-        let mut buf = [0_u8; 1024];
-        let n = foo.read(&mut buf).expect("read");
+    //     error!(
+    //         "File contents: {}",
+    //         str::from_utf8(&buf[0..n]).expect("convert to utf8")
+    //     );
 
-        error!(
-            "File contents: {}",
-            str::from_utf8(&buf[0..n]).expect("convert to utf8")
-        );
+    //     let start = Instant::now();
+    //     while Instant::now() < start + Duration::from_secs(5) {}
 
-        let start = Instant::now();
-        while Instant::now() < start + Duration::from_secs(5) {}
+    //     let mut count = 0;
 
-        let mut count = 0;
+    //     foo.write(format!("{count}").as_bytes())
+    //         .expect("buf not writing :(");
+    //     count += 1;
+    //     foo.flush().unwrap();
+    // }
+    // fs.unmount();
 
-        foo.write(format!("{count}").as_bytes())
-            .expect("buf not writing :(");
-        count += 1;
-        foo.flush().unwrap();
-    }
-    fs.unmount();
+    // let timg0 = TimerGroup::new(p.TIMG0);
+    // esp_rtos::start(timg0.timer0);
+    // let esp_radio_ctrl = esp_radio::init().unwrap();
 
-    let timg0 = TimerGroup::new(p.TIMG0);
-    esp_rtos::start(timg0.timer0);
-    let esp_radio_ctrl = esp_radio::init().unwrap();
-
-    let mut wifi = Wifi::new(p.WIFI, &esp_radio_ctrl);
-    let mut next_send_time = Instant::now() + Duration::from_secs(5);
-
+    // let mut wifi = Wifi::new(p.WIFI, &esp_radio_ctrl);
+    // let mut next_send_time = Instant::now() + Duration::from_secs(5);
+    let mut start = Instant::now();
     loop {
-        wifi.receive_data();
+        // wifi.receive_data();
 
-        if Instant::now() >= next_send_time {
-            wifi.send_data();
-            next_send_time = Instant::now() + Duration::from_secs(5);
-            // println!(
-            //     "Length of count bytes thing {}",
-            //     format!("{count}").as_bytes().len()
-            // );
+        // if Instant::now() >= next_send_time {
+        //     wifi.send_data();
+        //     next_send_time = Instant::now() + Duration::from_secs(5);
+        // println!(
+        //     "Length of count bytes thing {}",
+        //     format!("{count}").as_bytes().len()
+        // );
+
+        // LSM Stuff
+        if start.elapsed() > Duration::from_secs(1) {
+            println!("LSM Data: {}", lsm.read_lsm());
+            start = Instant::now();
         }
-
-        // for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
-        //     println!("---Fin {}---", i);
-        //     match data {
-        //         Ok(data) => {
-        //             println!("temp: {}", esp_firmware::fin::convert_volts2temp(data[0]));
-        //             println!("volts left: {}", data[1]);
-        //             println!("volts right: {}", data[2]);
-        //         }
-        //         Err(fin::Error::CRC { computed }) => {
-        //             error!("!!! CRC Failed, got remainder {}", computed)
-        //         }
-        //     }
-        // }
     }
+
+    // for (i, data) in fins.read_all_data().into_iter().enumerate().take(1) {
+    //     println!("---Fin {}---", i);
+    //     match data {
+    //         Ok(data) => {
+    //             println!("temp: {}", esp_firmware::fin::convert_volts2temp(data[0]));
+    //             println!("volts left: {}", data[1]);
+    //             println!("volts right: {}", data[2]);
+    //         }
+    //         Err(fin::Error::CRC { computed }) => {
+    //             error!("!!! CRC Failed, got remainder {}", computed)
+    //         }
+    //     }
+    // }
 }
