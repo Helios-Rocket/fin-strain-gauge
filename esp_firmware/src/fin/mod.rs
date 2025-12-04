@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 use crc_any::CRC;
 mod adc_consts;
 
@@ -101,7 +103,7 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
         let spi = Spi::new(
             spi,
             Config::default()
-                .with_frequency(Rate::from_mhz(8))
+                .with_frequency(Rate::from_mhz(12))
                 .with_mode(esp_hal::spi::Mode::_1),
         )
         .unwrap()
@@ -148,8 +150,8 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
 
             fin.set_osr(i, OSR::Times512);
 
-            // fin.set_gain(i, AdcChannel::CH1, Gain::Times4);
-            // fin.set_gain(i, AdcChannel::CH2, Gain::Times4);
+            fin.set_gain(i, AdcChannel::CH1, Gain::Times128);
+            fin.set_gain(i, AdcChannel::CH2, Gain::Times128);
         }
 
         // fin.write_register(0x8, 0b0100);
@@ -238,12 +240,19 @@ impl<'d, PWM: PwmPeripheral> Fins<'d, PWM> {
         self.assert_cs(fin_idx);
 
         let mut buf = [0_u8; 15];
+        // let mut buf = [0b10100010, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         self.spi.transfer(&mut buf).expect("Spi Transfer Failed!");
 
         self.unassert_cs(fin_idx);
 
         self.crc16.reset();
         self.crc16.digest(&buf);
+
+        // info!("{:02x}{:02x}{:02x}", buf[0], buf[1], buf[2]);
+        // info!("{:02x}{:02x}{:02x}", buf[3], buf[4], buf[5]);
+        // info!("{:02x}{:02x}{:02x}", buf[6], buf[7], buf[8]);
+        // info!("{:02x}{:02x}{:02x}", buf[9], buf[10], buf[11]);
+        // info!("{:02x}{:02x}{:02x}", buf[12], buf[13], buf[14]);
 
         let rem = self.crc16.get_crc() as u16;
         if rem != 0 {

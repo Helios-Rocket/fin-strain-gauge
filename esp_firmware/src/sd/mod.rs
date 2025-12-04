@@ -1,4 +1,6 @@
-use defmt::{error, info, println};
+use core::fmt::Debug;
+
+use defmt::{error, info, println, Format};
 use embedded_error::{mci, ImplError};
 use esp32s3::{aes::block_num, sdhost::RegisterBlock};
 use esp_hal::{
