@@ -5,7 +5,7 @@
 	(uuid "e6511e2b-333c-4d1b-a7c0-7b8b4721c5e4")
 	(paper "A4")
 	(lib_symbols
-		(symbol "Connector:Conn_01x08_Pin"
+		(symbol "Connector:Conn_01x06_Pin"
 			(pin_names
 				(offset 1.016)
 				(hide yes)
@@ -14,15 +14,15 @@
 			(in_bom yes)
 			(on_board yes)
 			(property "Reference" "J"
-				(at 0 10.16 0)
+				(at 0 7.62 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Value" "Conn_01x08_Pin"
-				(at 0 -12.7 0)
+			(property "Value" "Conn_01x06_Pin"
+				(at 0 -10.16 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -47,7 +47,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "Generic connector, single row, 01x08, script generated"
+			(property "Description" "Generic connector, single row, 01x06, script generated"
 				(at 0 0 0)
 				(effects
 					(font
@@ -82,18 +82,7 @@
 					(hide yes)
 				)
 			)
-			(symbol "Conn_01x08_Pin_1_1"
-				(rectangle
-					(start 0.8636 7.747)
-					(end 0 7.493)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
+			(symbol "Conn_01x06_Pin_1_1"
 				(rectangle
 					(start 0.8636 5.207)
 					(end 0 4.953)
@@ -158,29 +147,6 @@
 					)
 					(fill
 						(type outline)
-					)
-				)
-				(rectangle
-					(start 0.8636 -10.033)
-					(end 0 -10.287)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 1.27 7.62) (xy 0.8636 7.62)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
 					)
 				)
 				(polyline
@@ -255,20 +221,8 @@
 						(type none)
 					)
 				)
-				(polyline
-					(pts
-						(xy 1.27 -10.16) (xy 0.8636 -10.16)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
 				(pin passive line
-					(at 5.08 7.62 180)
+					(at 5.08 5.08 180)
 					(length 3.81)
 					(name "Pin_1"
 						(effects
@@ -286,7 +240,7 @@
 					)
 				)
 				(pin passive line
-					(at 5.08 5.08 180)
+					(at 5.08 2.54 180)
 					(length 3.81)
 					(name "Pin_2"
 						(effects
@@ -304,7 +258,7 @@
 					)
 				)
 				(pin passive line
-					(at 5.08 2.54 180)
+					(at 5.08 0 180)
 					(length 3.81)
 					(name "Pin_3"
 						(effects
@@ -322,7 +276,7 @@
 					)
 				)
 				(pin passive line
-					(at 5.08 0 180)
+					(at 5.08 -2.54 180)
 					(length 3.81)
 					(name "Pin_4"
 						(effects
@@ -340,7 +294,7 @@
 					)
 				)
 				(pin passive line
-					(at 5.08 -2.54 180)
+					(at 5.08 -5.08 180)
 					(length 3.81)
 					(name "Pin_5"
 						(effects
@@ -358,7 +312,7 @@
 					)
 				)
 				(pin passive line
-					(at 5.08 -5.08 180)
+					(at 5.08 -7.62 180)
 					(length 3.81)
 					(name "Pin_6"
 						(effects
@@ -368,42 +322,6 @@
 						)
 					)
 					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 5.08 -7.62 180)
-					(length 3.81)
-					(name "Pin_7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 5.08 -10.16 180)
-					(length 3.81)
-					(name "Pin_8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -497,7 +415,7 @@
 			)
 		)
 	)
-	(global_label "+5V"
+	(global_label "+3.3V"
 		(shape input)
 		(at 179.07 72.39 0)
 		(fields_autoplaced yes)
@@ -509,7 +427,7 @@
 		)
 		(uuid "32ce4ff6-3056-451d-be4a-f2253079472e")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 183.1836 72.39 0)
+			(at 184.2722 72.39 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -608,15 +526,15 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:Conn_01x08_Pin")
-		(at 170.18 77.47 0)
+		(lib_id "Connector:Conn_01x06_Pin")
+		(at 170.18 74.93 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "b15c280f-ce41-4c34-b591-2bd5981b1fbf")
+		(uuid "d4eb941f-b8d0-4297-a46c-2f36dd0bf2d3")
 		(property "Reference" "J1"
 			(at 170.815 64.77 0)
 			(effects
@@ -625,7 +543,7 @@
 				)
 			)
 		)
-		(property "Value" "Conn_01x08_Pin"
+		(property "Value" "Conn_01x06_Pin"
 			(at 170.815 67.31 0)
 			(effects
 				(font
@@ -633,8 +551,8 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
-			(at 170.18 77.47 0)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical"
+			(at 170.18 74.93 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -643,7 +561,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 170.18 77.47 0)
+			(at 170.18 74.93 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -651,38 +569,32 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "Generic connector, single row, 01x08, script generated"
-			(at 170.18 77.47 0)
+		(property "Description" "Generic connector, single row, 01x06, script generated"
+			(at 170.18 74.93 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
 			)
-		)
-		(pin "5"
-			(uuid "69f10f5f-065b-4823-b1d5-cdfd2fb29215")
 		)
 		(pin "4"
-			(uuid "5ec78caa-967d-4401-838b-9c9840b13b04")
-		)
-		(pin "6"
-			(uuid "11fcd9cd-0c9d-4812-997d-dce5db22aa1c")
-		)
-		(pin "8"
-			(uuid "bf208ee9-1946-4940-98d1-fc7802a6f7f8")
-		)
-		(pin "3"
-			(uuid "2a73520f-4717-4942-8ec7-c12cff33e9a2")
-		)
-		(pin "7"
-			(uuid "5b881cfe-419a-4a8e-861d-a447fc6f10c6")
+			(uuid "c6262da9-0650-4dae-9f41-0db7cf55bf0d")
 		)
 		(pin "1"
-			(uuid "045baa93-8693-4617-bde7-827f3095f005")
+			(uuid "e2688b9e-8d95-4ea7-b925-daabecbe5237")
+		)
+		(pin "6"
+			(uuid "76368bec-9766-4c36-a932-c852f9f8a689")
+		)
+		(pin "5"
+			(uuid "f227d410-4250-4783-8f5c-0681c325b472")
 		)
 		(pin "2"
-			(uuid "b0120676-fe4e-4b03-b9fe-5d075518b531")
+			(uuid "5d8dbdc9-c8d7-4243-ace3-4cb09a65979a")
+		)
+		(pin "3"
+			(uuid "8ba26864-7765-4023-b19e-78e2e946130e")
 		)
 		(instances
 			(project ""
