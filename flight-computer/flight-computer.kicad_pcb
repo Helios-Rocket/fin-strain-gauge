@@ -1513,7 +1513,7 @@
 			(size 1.8 3.8)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.138889)
-			(uuid "c06d44fa-c6bc-4756-af0c-bcc09708db91")
+			(uuid "2feda108-d12b-4a29-bff4-64b5cfa1f18d")
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/3dmodels/SM06B-ZESS-TB.STEP"
@@ -7275,7 +7275,7 @@
 			(size 1.8 3.8)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.138889)
-			(uuid "a343b29a-c264-4b95-b016-91d744d4c5b6")
+			(uuid "a142d0fd-541a-4148-a6f3-cd6465c6d235")
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/3dmodels/SM06B-ZESS-TB.STEP"

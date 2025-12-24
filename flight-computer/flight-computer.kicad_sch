@@ -7899,7 +7899,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_ZE_S06B-ZESK-2D_1x06_P1.50mm_Horizontal"
+		(property "Footprint" "Connector_JST:JST_ZE_SM06B-ZESS-TB_1x06-1MP_P1.50mm_Horizontal"
 			(at 163.83 116.84 0)
 			(effects
 				(font
@@ -9763,7 +9763,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_ZE_S06B-ZESK-2D_1x06_P1.50mm_Horizontal"
+		(property "Footprint" "Connector_JST:JST_ZE_SM06B-ZESS-TB_1x06-1MP_P1.50mm_Horizontal"
 			(at 123.19 115.57 0)
 			(effects
 				(font
