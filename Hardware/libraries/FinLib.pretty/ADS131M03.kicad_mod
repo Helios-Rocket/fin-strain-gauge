@@ -1247,4 +1247,15 @@
 		(uuid "aa14ab79-69ca-4729-9821-b682a9d028de")
 	)
 	(embedded_fonts no)
+	(model "../libraries/3d/PW0020A.stp"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
 )
