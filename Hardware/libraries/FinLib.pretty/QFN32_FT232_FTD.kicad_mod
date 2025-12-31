@@ -1956,4 +1956,15 @@
 		(uuid "881a9470-d7d0-4631-9350-ff8505fb9a38")
 	)
 	(embedded_fonts no)
+	(model "../libraries/3d/QFN32_FT232RQ_FTD.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
 )
