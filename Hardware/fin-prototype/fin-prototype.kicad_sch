@@ -8994,7 +8994,7 @@
 	)
 	(global_label "SWCLK"
 		(shape input)
-		(at 295.91 88.9 0)
+		(at 295.91 83.82 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -9004,7 +9004,7 @@
 		)
 		(uuid "01d4f320-cab4-4e6e-a0a8-8edfcdb3d7c4")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 305.1242 88.9 0)
+			(at 305.1242 83.82 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9014,7 +9014,7 @@
 			)
 		)
 		(property "Netclass" ""
-			(at 295.91 91.0908 0)
+			(at 295.91 86.0108 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9466,7 +9466,7 @@
 	)
 	(global_label "SPI1_SCK"
 		(shape input)
-		(at 295.91 83.82 0)
+		(at 295.91 88.9 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -9476,7 +9476,7 @@
 		)
 		(uuid "3bea8558-1def-4a5f-b509-01dc3bb080cf")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 308.0271 83.82 0)
+			(at 308.0271 88.9 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9488,7 +9488,7 @@
 	)
 	(global_label "SPI1_MISO"
 		(shape input)
-		(at 295.91 78.74 0)
+		(at 295.91 76.2 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -9498,7 +9498,7 @@
 		)
 		(uuid "3d9e2dd5-7a58-4be8-bc77-1c652cd1178a")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 308.7528 78.74 0)
+			(at 308.7528 76.2 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10390,7 +10390,7 @@
 	)
 	(global_label "SWDIO"
 		(shape input)
-		(at 295.91 86.36 0)
+		(at 295.91 81.28 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -10400,7 +10400,7 @@
 		)
 		(uuid "91881e7e-9c05-4064-b48b-dbc6cd019641")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 304.7614 86.36 0)
+			(at 304.7614 81.28 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10434,7 +10434,7 @@
 	)
 	(global_label "SPI1_MOSI"
 		(shape input)
-		(at 295.91 76.2 0)
+		(at 295.91 78.74 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -10444,7 +10444,7 @@
 		)
 		(uuid "98d4ab76-ca33-493c-9a62-6b993754aa53")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 308.7528 76.2 0)
+			(at 308.7528 78.74 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10522,7 +10522,7 @@
 	)
 	(global_label "~{SPI1_CS}"
 		(shape input)
-		(at 295.91 81.28 0)
+		(at 295.91 86.36 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -10532,7 +10532,7 @@
 		)
 		(uuid "a3348294-aa10-46c8-b5a0-be0da2534c52")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 306.6361 81.28 0)
+			(at 306.6361 86.36 0)
 			(effects
 				(font
 					(size 1.27 1.27)
