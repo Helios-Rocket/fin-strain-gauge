@@ -1,0 +1,6 @@
+/home/cbscott/STM32Projects/build/Debug/CMakeFiles/cbscott.dir
+/home/cbscott/STM32Projects/build/Debug/CMakeFiles/edit_cache.dir
+/home/cbscott/STM32Projects/build/Debug/CMakeFiles/rebuild_cache.dir
+/home/cbscott/STM32Projects/build/Debug/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+/home/cbscott/STM32Projects/build/Debug/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+/home/cbscott/STM32Projects/build/Debug/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir

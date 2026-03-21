@@ -1,0 +1,7 @@
+Stuff we gotta test: 
+- SPI ADC
+- Flash and Quad SPI 
+    - Putting data on and taking data off 
+    - DMA? 
+- UART Print 
+- Check clock speeds and stuff 

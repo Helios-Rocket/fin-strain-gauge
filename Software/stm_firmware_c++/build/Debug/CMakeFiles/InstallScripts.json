@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/cbscott/STM32Projects/build/Debug/cmake_install.cmake",
+		"/home/cbscott/STM32Projects/build/Debug/cmake/stm32cubemx/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
