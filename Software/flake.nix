@@ -20,12 +20,13 @@
       eachSystem = fn: nixpkgs.lib.genAttrs (import systems) (system: fn system (import nixpkgs { inherit system overlays; }));
     in {
       devShells = eachSystem (system: pkgs: {
-        default = (pkgs.buildFHSEnv {
-          name = "rust-embedded";
+        esp = (pkgs.buildFHSEnv {
+          name = "rust-esp";
           targetPkgs = pkgs: with pkgs; [
             # (pkgs.fenix.combine (with pkgs.fenix; [
             #   stable.defaultToolchain
             #   stable.llvm-tools
+            #   targets.thumbv7em-none-eabihf.latest.rust-std
             # ]))
             rust-analyzer
             rustup
@@ -37,7 +38,6 @@
             esp-generate
             espflash
             cargo-expand
-            probe-rs-tools
             gcc
             libz
             gdb
@@ -47,17 +47,18 @@
             . ~/export-esp.sh
           '';
         }).env;
-        # default = pkgs.mkShell {
-        #   name = "rust-esp";
-        #   buildInputs = with pkgs; [
-        #     rust-esp.packages.${system}.rust-esp
-        #     rust-esp.packages.${system}.xtensa-esp-elf
-        #     rust-esp.packages.${system}.xtensa-esp32-elf-clang
-        #     cargo-espflash
-        #     esp-generate
-        #   ];
-        #   LIBCLANG_PATH = "${rust-esp.packages.${system}.xtensa-esp32-elf-clang}/lib";
-        # };
+        stm = pkgs.mkShell {
+          name = "rust-stm";
+          buildInputs = with pkgs; [
+            (pkgs.fenix.combine (with pkgs.fenix; [
+              stable.defaultToolchain
+              targets.thumbv7em-none-eabihf.latest.rust-std
+            ]))
+            probe-rs-tools
+            flip-link # embedded stack protection
+            rust-analyzer
+          ];
+        };
       });
     };
 }
