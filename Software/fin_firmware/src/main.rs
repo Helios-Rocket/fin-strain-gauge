@@ -28,6 +28,6 @@ unsafe fn main() -> ! {
 
     loop {
         led_pin.toggle();
-        delay_ms(200, ahb_freq);
+        delay_ms(1000, ahb_freq);
     }
 }
