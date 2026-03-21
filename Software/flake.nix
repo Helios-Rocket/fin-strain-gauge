@@ -1,5 +1,5 @@
 {
-  description = "Rust flake for teensy dev";
+  description = "Rust flake for embedded dev";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
@@ -21,7 +21,7 @@
     in {
       devShells = eachSystem (system: pkgs: {
         default = (pkgs.buildFHSEnv {
-          name = "rust-teensy";
+          name = "rust-embedded";
           targetPkgs = pkgs: with pkgs; [
             # (pkgs.fenix.combine (with pkgs.fenix; [
             #   stable.defaultToolchain
@@ -35,9 +35,9 @@
             just-lsp
             espup
             esp-generate
-            cargo-espflash
+            espflash
             cargo-expand
-            probe-rs
+            probe-rs-tools
             gcc
             libz
             gdb
