@@ -1,0 +1,176 @@
+
+build/debug/fincores.elf:     file format elf32-littlearm
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .isr_vector   00000000  08000000  08000000  00002008  2**0
+                  CONTENTS
+  1 .text         00000130  08000000  08000000  00001000  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  2 .rodata       00000000  08000130  08000130  00002008  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  3 .ARM.extab    00000000  08000130  08000130  00002008  2**0
+                  CONTENTS, READONLY
+  4 .ARM          00000000  08000130  08000130  00002008  2**0
+                  CONTENTS, READONLY
+  5 .preinit_array 00000000  08000130  08000130  00002008  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  6 .init_array   00000008  08000130  08000130  00001130  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  7 .fini_array   00000008  08000138  08000138  00001138  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  8 .data         00000008  20000000  08000140  00002000  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  9 .tdata        00000000  20000008  20000008  00002008  2**2
+                  CONTENTS, ALLOC, LOAD, DATA, THREAD_LOCAL
+ 10 .tbss         00000000  20000008  20000008  00000000  2**2
+                  ALLOC, THREAD_LOCAL
+ 11 .bss          000001b4  20000008  08000148  00002008  2**2
+                  ALLOC
+ 12 ._user_heap_stack 00000604  200001bc  08000148  000021bc  2**0
+                  ALLOC
+ 13 .ARM.attributes 0000002a  00000000  00000000  00002008  2**0
+                  CONTENTS, READONLY
+ 14 .comment      00000039  00000000  00000000  00002032  2**0
+                  CONTENTS, READONLY
+
+Disassembly of section .text:
+
+08000000 <__do_global_dtors_aux>:
+ 8000000:	b508      	push	{r3, lr}
+ 8000002:	4b06      	ldr	r3, [pc, #24]	@ (800001c <__do_global_dtors_aux+0x1c>)
+ 8000004:	781a      	ldrb	r2, [r3, #0]
+ 8000006:	b93a      	cbnz	r2, 8000018 <__do_global_dtors_aux+0x18>
+ 8000008:	4a05      	ldr	r2, [pc, #20]	@ (8000020 <__do_global_dtors_aux+0x20>)
+ 800000a:	b11a      	cbz	r2, 8000014 <__do_global_dtors_aux+0x14>
+ 800000c:	4805      	ldr	r0, [pc, #20]	@ (8000024 <__do_global_dtors_aux+0x24>)
+ 800000e:	f3af 8000 	nop.w
+ 8000012:	4b02      	ldr	r3, [pc, #8]	@ (800001c <__do_global_dtors_aux+0x1c>)
+ 8000014:	2201      	movs	r2, #1
+ 8000016:	701a      	strb	r2, [r3, #0]
+ 8000018:	bd08      	pop	{r3, pc}
+ 800001a:	bf00      	nop
+ 800001c:	20000008 	.word	0x20000008
+ 8000020:	00000000 	.word	0x00000000
+ 8000024:	08000118 	.word	0x08000118
+
+08000028 <frame_dummy>:
+ 8000028:	b508      	push	{r3, lr}
+ 800002a:	4b03      	ldr	r3, [pc, #12]	@ (8000038 <frame_dummy+0x10>)
+ 800002c:	b11b      	cbz	r3, 8000036 <frame_dummy+0xe>
+ 800002e:	4903      	ldr	r1, [pc, #12]	@ (800003c <frame_dummy+0x14>)
+ 8000030:	4803      	ldr	r0, [pc, #12]	@ (8000040 <frame_dummy+0x18>)
+ 8000032:	f3af 8000 	nop.w
+ 8000036:	bd08      	pop	{r3, pc}
+ 8000038:	00000000 	.word	0x00000000
+ 800003c:	2000000c 	.word	0x2000000c
+ 8000040:	08000118 	.word	0x08000118
+
+08000044 <atexit>:
+ 8000044:	2300      	movs	r3, #0
+ 8000046:	4601      	mov	r1, r0
+ 8000048:	461a      	mov	r2, r3
+ 800004a:	4618      	mov	r0, r3
+ 800004c:	f000 b818 	b.w	8000080 <__register_exitproc>
+
+08000050 <__libc_fini_array>:
+ 8000050:	b538      	push	{r3, r4, r5, lr}
+ 8000052:	4d07      	ldr	r5, [pc, #28]	@ (8000070 <__libc_fini_array+0x20>)
+ 8000054:	4c07      	ldr	r4, [pc, #28]	@ (8000074 <__libc_fini_array+0x24>)
+ 8000056:	1b2c      	subs	r4, r5, r4
+ 8000058:	10a4      	asrs	r4, r4, #2
+ 800005a:	d005      	beq.n	8000068 <__libc_fini_array+0x18>
+ 800005c:	3c01      	subs	r4, #1
+ 800005e:	f855 3d04 	ldr.w	r3, [r5, #-4]!
+ 8000062:	4798      	blx	r3
+ 8000064:	2c00      	cmp	r4, #0
+ 8000066:	d1f9      	bne.n	800005c <__libc_fini_array+0xc>
+ 8000068:	e8bd 4038 	ldmia.w	sp!, {r3, r4, r5, lr}
+ 800006c:	f000 b85a 	b.w	8000124 <_fini>
+ 8000070:	0800013c 	.word	0x0800013c
+ 8000074:	08000138 	.word	0x08000138
+
+08000078 <__retarget_lock_acquire_recursive>:
+ 8000078:	4770      	bx	lr
+ 800007a:	bf00      	nop
+
+0800007c <__retarget_lock_release_recursive>:
+ 800007c:	4770      	bx	lr
+ 800007e:	bf00      	nop
+
+08000080 <__register_exitproc>:
+ 8000080:	b5f0      	push	{r4, r5, r6, r7, lr}
+ 8000082:	4c1d      	ldr	r4, [pc, #116]	@ (80000f8 <__register_exitproc+0x78>)
+ 8000084:	b083      	sub	sp, #12
+ 8000086:	4605      	mov	r5, r0
+ 8000088:	6820      	ldr	r0, [r4, #0]
+ 800008a:	9101      	str	r1, [sp, #4]
+ 800008c:	4616      	mov	r6, r2
+ 800008e:	461f      	mov	r7, r3
+ 8000090:	f7ff fff2 	bl	8000078 <__retarget_lock_acquire_recursive>
+ 8000094:	4a19      	ldr	r2, [pc, #100]	@ (80000fc <__register_exitproc+0x7c>)
+ 8000096:	9901      	ldr	r1, [sp, #4]
+ 8000098:	6813      	ldr	r3, [r2, #0]
+ 800009a:	b323      	cbz	r3, 80000e6 <__register_exitproc+0x66>
+ 800009c:	685a      	ldr	r2, [r3, #4]
+ 800009e:	6820      	ldr	r0, [r4, #0]
+ 80000a0:	2a1f      	cmp	r2, #31
+ 80000a2:	dc23      	bgt.n	80000ec <__register_exitproc+0x6c>
+ 80000a4:	b94d      	cbnz	r5, 80000ba <__register_exitproc+0x3a>
+ 80000a6:	1c54      	adds	r4, r2, #1
+ 80000a8:	3202      	adds	r2, #2
+ 80000aa:	605c      	str	r4, [r3, #4]
+ 80000ac:	f843 1022 	str.w	r1, [r3, r2, lsl #2]
+ 80000b0:	f7ff ffe4 	bl	800007c <__retarget_lock_release_recursive>
+ 80000b4:	2000      	movs	r0, #0
+ 80000b6:	b003      	add	sp, #12
+ 80000b8:	bdf0      	pop	{r4, r5, r6, r7, pc}
+ 80000ba:	eb03 0e82 	add.w	lr, r3, r2, lsl #2
+ 80000be:	2401      	movs	r4, #1
+ 80000c0:	f8ce 6088 	str.w	r6, [lr, #136]	@ 0x88
+ 80000c4:	f8d3 c188 	ldr.w	ip, [r3, #392]	@ 0x188
+ 80000c8:	4094      	lsls	r4, r2
+ 80000ca:	ea4c 0c04 	orr.w	ip, ip, r4
+ 80000ce:	2d02      	cmp	r5, #2
+ 80000d0:	f8c3 c188 	str.w	ip, [r3, #392]	@ 0x188
+ 80000d4:	f8ce 7108 	str.w	r7, [lr, #264]	@ 0x108
+ 80000d8:	d1e5      	bne.n	80000a6 <__register_exitproc+0x26>
+ 80000da:	f8d3 518c 	ldr.w	r5, [r3, #396]	@ 0x18c
+ 80000de:	4325      	orrs	r5, r4
+ 80000e0:	f8c3 518c 	str.w	r5, [r3, #396]	@ 0x18c
+ 80000e4:	e7df      	b.n	80000a6 <__register_exitproc+0x26>
+ 80000e6:	4b06      	ldr	r3, [pc, #24]	@ (8000100 <__register_exitproc+0x80>)
+ 80000e8:	6013      	str	r3, [r2, #0]
+ 80000ea:	e7d7      	b.n	800009c <__register_exitproc+0x1c>
+ 80000ec:	f7ff ffc6 	bl	800007c <__retarget_lock_release_recursive>
+ 80000f0:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+ 80000f4:	e7df      	b.n	80000b6 <__register_exitproc+0x36>
+ 80000f6:	bf00      	nop
+ 80000f8:	20000000 	.word	0x20000000
+ 80000fc:	200001b8 	.word	0x200001b8
+ 8000100:	20000028 	.word	0x20000028
+
+08000104 <register_fini>:
+ 8000104:	4b02      	ldr	r3, [pc, #8]	@ (8000110 <register_fini+0xc>)
+ 8000106:	b113      	cbz	r3, 800010e <register_fini+0xa>
+ 8000108:	4802      	ldr	r0, [pc, #8]	@ (8000114 <register_fini+0x10>)
+ 800010a:	f7ff bf9b 	b.w	8000044 <atexit>
+ 800010e:	4770      	bx	lr
+ 8000110:	00000000 	.word	0x00000000
+ 8000114:	08000051 	.word	0x08000051
+
+08000118 <_init>:
+ 8000118:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 800011a:	bf00      	nop
+ 800011c:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 800011e:	bc08      	pop	{r3}
+ 8000120:	469e      	mov	lr, r3
+ 8000122:	4770      	bx	lr
+
+08000124 <_fini>:
+ 8000124:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 8000126:	bf00      	nop
+ 8000128:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 800012a:	bc08      	pop	{r3}
+ 800012c:	469e      	mov	lr, r3
+ 800012e:	4770      	bx	lr
