@@ -8,6 +8,8 @@ use hal::{
     pac,
 };
 
+use panic_probe as _;
+
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
     let mut cp = cortex_m::Peripherals::take().unwrap();
@@ -20,7 +22,7 @@ unsafe fn main() -> ! {
 
     clock_cfg.setup().unwrap();
 
-    let ahb_freq = clock_cfg.ahb1();
+    let ahb_freq = clock_cfg.apb1();
 
     let mut led_pin = Pin::new(Port::B, 5, PinMode::Output);
 

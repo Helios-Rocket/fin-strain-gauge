@@ -52,7 +52,7 @@
           buildInputs = with pkgs; [
             (pkgs.fenix.combine (with pkgs.fenix; [
               stable.defaultToolchain
-              targets.thumbv7em-none-eabihf.latest.rust-std
+              targets.thumbv7em-none-eabihf.stable.rust-std
             ]))
             probe-rs-tools
             flip-link # embedded stack protection
