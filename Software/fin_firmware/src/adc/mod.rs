@@ -61,6 +61,8 @@ impl ADC {
             hal::timer::OutputCompare::Pwm1,
             0.5,
         );
+        tim2.enable();
+        
         let clk_freq = clk_config.apb1();
         delay_ms(5, clk_freq);
 
