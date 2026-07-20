@@ -37,17 +37,19 @@ unsafe fn main() -> ! {
     let mut adc = ADC::new(dp.TIM2, dp.SPI2, &clock_cfg);
     let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
 
-    // for i in 0..512 {
-    //     if flash.is_block_bad(i) {
-    //         println!("Block {} is bad!", i);
-    //     }
-    // }
+    for i in 0..512 {
+        if flash.is_block_bad(i) {
+            println!("Block {} is bad!", i);
+        } else {
+            println!("Block {} is good!", i);
+        }
+    }
     println!("Done checking bad blocks");
     loop {
         led_pin.toggle();
         delay_ms(1000, ahb_freq);
 
-        flash.is_block_bad(0);
+        // flash.is_block_bad(0);
 
         // println!(
         //     "Flash Status Reg {:08b}",

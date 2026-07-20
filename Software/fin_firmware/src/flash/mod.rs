@@ -95,8 +95,6 @@ impl WinbondFlash {
 
         while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
-        println!("bad_block_fn");
-
         self.regs.dlr().write(|w| unsafe { w.bits(0) });
         self.regs.ccr().write(|w| unsafe {
             w.admode()
@@ -156,7 +154,7 @@ impl WinbondFlash {
 
         let word = self.regs.dr8().read().bits();
 
-        // delay_ms(10, self.clk_freq);
+        delay_us(1, self.clk_freq);
 
         word
     }
