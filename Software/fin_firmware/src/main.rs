@@ -3,7 +3,7 @@
 
 use adc::ADC;
 use defmt::{error, println};
-use flash::Flash;
+use flash::WinbondFlash;
 use hal::{
     clocks::Clocks,
     delay_ms,
@@ -14,7 +14,7 @@ use hal::{
 use defmt_rtt as _;
 use panic_probe as _;
 mod adc;
-mod flash; 
+mod flash;
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
@@ -33,13 +33,19 @@ unsafe fn main() -> ! {
 
     let mut led_pin = Pin::new(Port::B, 5, PinMode::Output);
     let mut adc = ADC::new(dp.TIM2, dp.SPI2, &clock_cfg);
-    let mut flash = Flash::new(dp.QUADSPI, &clock_cfg); 
+    let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
+
+    for i in 0..32_768 {
+        if flash.is_block_bad(i) {
+            println!("Block {} is bad!", i);
+        }
+    }
     loop {
         println!("I'm working :D!");
         led_pin.toggle();
         delay_ms(1000, ahb_freq);
 
-        println!("Flash Status Reg {:08b}", flash.read_status_registers()); 
+        println!("Flash Status Reg {:08b}", flash.read_status_registers());
 
         // match adc.read_adc_data() {
         //     Ok(data) => {
@@ -49,7 +55,5 @@ unsafe fn main() -> ! {
         //         error!("Got CRC Error {}", computed)
         //     }
         // }
-
-
     }
 }
