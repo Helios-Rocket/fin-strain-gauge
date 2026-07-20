@@ -10,7 +10,7 @@ use hal::{
     gpio::{Pin, PinMode, Port},
     pac::{self},
 };
-
+//TODO: add stm flash stuff 
 use defmt_rtt as _;
 use panic_probe as _;
 mod adc;
