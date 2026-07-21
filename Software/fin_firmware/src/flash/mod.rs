@@ -6,6 +6,7 @@ use hal::{
     delay_ms, delay_us,
     gpio::{Pin, PinMode, Port},
     pac::{QUADSPI, RCC},
+    flash::{FLASH}, 
     qspi::Qspi,
 };
 
@@ -23,14 +24,27 @@ pub enum WinbondStatusReg {
 pub struct WinbondFlash {
     // TODO: Finish this
     clk_freq: u32,
+    stm_flash: FLASH,
+    page_count: u16, 
     regs: QUADSPI,
 }
 
+
 impl WinbondFlash {
-    pub fn new(rcc: &mut RCC, regs: QUADSPI, clk_config: &Clocks) -> Self {
+    pub fn new(rcc: &mut RCC, stm_flash: FLASH, regs: QUADSPI, clk_config: &Clocks) -> Self {
         println!("New Flash!");
 
         let clk_freq = clk_config.apb1();
+        
+        // Read page count currently stored in stm flash 
+        let page_count = stm_flash.read(bank, page, offset, buf); 
+        if(page_count != )
+
+        // Write initial page count to the stm flash
+        let page_count = 0; 
+        stm_flash.unlock(); 
+        stm_flash.erase_write_page(0, 0, 0); //Write 0 to bank 0, page 0 
+        stm_flash.lock(); 
 
         let _sck = Pin::new(Port::A, 3, PinMode::Alt(10));
         let _cs = Pin::new(Port::A, 2, PinMode::Alt(10));
@@ -64,7 +78,7 @@ impl WinbondFlash {
         // Enable the QUADSPI peripheral
         regs.cr().modify(|_, w| w.en().set_bit());
 
-        let flash = Self { clk_freq, regs };
+        let flash = Self { clk_freq, stm_flash, page_count, regs };
 
         flash
     }
@@ -115,6 +129,9 @@ impl WinbondFlash {
 
         self.regs.ar().write(|w| unsafe { w.bits(0) });
 
+            stm_flash.erase_write_page(0, 0, page_count);
+            stm_flash.lock(); 
+        }
         while self.regs.sr().read().tcf().is_not_complete() {}
 
         let word = self.regs.dr8().read().bits();
@@ -134,7 +151,7 @@ impl WinbondFlash {
         self.regs.dlr().write(|w| unsafe { w.bits(0) });
 
         self.regs.ccr().write(|w| unsafe {
-            w.admode()
+            w.admode()let count
                 .bits(0b01)
                 .imode()
                 .bits(0b01)
@@ -158,4 +175,21 @@ impl WinbondFlash {
 
         word
     }
+
+    pub fn write_page(&mut self) -> u8{
+        //TODO: Fix fuction defintion to be correct 
+
+        //TODO: implement this function 
+
+        if (success){
+            page_count += 1;  
+            stm_flash.unlock(); 
+            stm_flash.erase_write_page(0, 0, page_count);
+            stm_flash.lock(); 
+        }
+     
+
+    }
 }
+
+
