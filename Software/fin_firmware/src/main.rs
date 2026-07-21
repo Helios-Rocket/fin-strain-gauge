@@ -46,9 +46,9 @@ unsafe fn main() -> ! {
     // }
     // flash.is_block_bad(0);
     // println!("Done checking bad blocks");
-    let data = [0xAAAAAAAAu32; 512];
-    flash.write_page(data);
-    println!("Done writing first page");
+    // let data = [0xAAAAAAAAu32; 512];
+    // flash.write_page(data);
+    // println!("Done writing first page");
     loop {
         led_pin.toggle();
         delay_ms(1000, ahb_freq);
