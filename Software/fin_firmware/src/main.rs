@@ -35,7 +35,7 @@ unsafe fn main() -> ! {
 
     let mut led_pin = Pin::new(Port::B, 5, PinMode::Output);
     let mut adc = ADC::new(dp.TIM2, dp.SPI2, &clock_cfg);
-    let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
+    let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, dp.FLASH, &clock_cfg);
 
     for i in 0..512 {
         if flash.is_block_bad(i) {
