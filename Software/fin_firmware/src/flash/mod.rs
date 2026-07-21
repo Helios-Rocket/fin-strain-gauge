@@ -6,7 +6,7 @@ use hal::{
     clocks::Clocks,
     delay_ms, delay_us,
     gpio::{Pin, PinMode, Port},
-    pac::{QUADSPI, RCC},
+    pac::{FLASH, QUADSPI, RCC},
     qspi::Qspi,
 };
 
@@ -87,11 +87,13 @@ pub enum WinbondInstruction {
 pub struct WinbondFlash {
     // TODO: Finish this
     clk_freq: u32,
+    stm_flash: FLASH,
+    page_count: u16,
     regs: QUADSPI,
 }
 
 impl WinbondFlash {
-    pub fn new(rcc: &mut RCC, regs: QUADSPI, clk_config: &Clocks) -> Self {
+    pub fn new(rcc: &mut RCC, stm_flash: FLASH, regs: QUADSPI, clk_config: &Clocks) -> Self {
         println!("New Flash!");
 
         let clk_freq = clk_config.apb1();
@@ -127,7 +129,12 @@ impl WinbondFlash {
         // Enable the QUADSPI peripheral
         regs.cr().modify(|_, w| w.en().enabled());
 
-        let flash = Self { clk_freq, regs };
+        let flash = Self {
+            clk_freq,
+            stm_flash,
+            page_count: 0,
+            regs,
+        };
 
         flash
     }
