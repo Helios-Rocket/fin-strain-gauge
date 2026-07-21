@@ -7,11 +7,19 @@ use hal::{
     gpio::{Pin, PinMode, Port},
     pac::{QUADSPI, RCC},
     flash::{FLASH}, 
+    qspi::Qspi,
 };
 
 pub const BYTES_PER_PAGE: u32 = 2048;
 pub const PAGES_PER_BLOCK: u32 = 64;
 pub const FLASH_SIZE_BYTES: u32 = 512 * PAGES_PER_BLOCK * BYTES_PER_PAGE;
+
+#[repr(u8)]
+pub enum WinbondStatusReg {
+    One = 0xA0,
+    Two = 0xB0,
+    Three = 0xC0,
+}
 
 pub struct WinbondFlash {
     // TODO: Finish this
@@ -65,9 +73,10 @@ impl WinbondFlash {
             .modify(|_, w| unsafe { w.fsize().bits(fsize as u8) });
 
         // Set the CLK speed
+        regs.cr().modify(|_, w| unsafe { w.prescaler().bits(79) });
 
         // Enable the QUADSPI peripheral
-        regs.cr().write(|w| w.en().set_bit());
+        regs.cr().modify(|_, w| w.en().set_bit());
 
         let flash = Self { clk_freq, stm_flash, page_count, regs };
 
@@ -75,6 +84,7 @@ impl WinbondFlash {
     }
 
     pub fn is_block_bad(&mut self, addr: u16) -> bool {
+        self.regs.fcr().write(|w| w.ctcf().clear());
         self.regs.dlr().write(|w| unsafe { w.dl().bits(1) });
         self.regs.ccr().write(|w| unsafe {
             w.admode()
@@ -95,7 +105,9 @@ impl WinbondFlash {
             .dr16()
             .write(|w| unsafe { w.data().bits(addr * 16) });
 
-        while self.read_status_registers() & 1 != 0 {}
+        delay_us(50, self.clk_freq);
+
+        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
         self.regs.dlr().write(|w| unsafe { w.bits(0) });
         self.regs.ccr().write(|w| unsafe {
@@ -127,13 +139,14 @@ impl WinbondFlash {
         word != 0xff
     }
 
-    pub fn read_status_registers(&mut self) -> u8 {
+    pub fn read_status_register(&mut self, r: WinbondStatusReg) -> u8 {
         // Protection (SR-1): Axh
         // Configuration (SR-2): Bxh
         // Status (SR-3):  Cxh
         // "accessed by Read Status Register and Write Status Register commands combined with 1-Byte Register Address respectively"
         let op_code = 0x0F;
-        let sr_addr = 0xC0;
+
+        self.regs.fcr().write(|w| w.ctcf().clear());
 
         self.regs.dlr().write(|w| unsafe { w.bits(0) });
 
@@ -150,9 +163,15 @@ impl WinbondFlash {
                 .bits(0b01)
         });
 
-        self.regs.ar().write(|w| unsafe { w.bits(sr_addr) });
+        self.regs
+            .ar()
+            .write(|w| unsafe { w.bits((r as u8) as u32) });
+
+        while self.regs.sr().read().tcf().is_not_complete() {}
 
         let word = self.regs.dr8().read().bits();
+
+        delay_us(1, self.clk_freq);
 
         word
     }

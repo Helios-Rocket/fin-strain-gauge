@@ -13,13 +13,15 @@ use hal::{
 //TODO: add stm flash stuff 
 use defmt_rtt as _;
 use panic_probe as _;
+
+use crate::flash::WinbondStatusReg;
 mod adc;
 mod flash;
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
     let mut cp = cortex_m::Peripherals::take().unwrap();
-    let dp = pac::Peripherals::take().unwrap();
+    let mut dp = pac::Peripherals::take().unwrap();
 
     let clock_cfg = Clocks {
         hsi48_on: true,
@@ -35,17 +37,24 @@ unsafe fn main() -> ! {
     let mut adc = ADC::new(dp.TIM2, dp.SPI2, &clock_cfg);
     let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
 
-    for i in 0..32_768 {
+    for i in 0..512 {
         if flash.is_block_bad(i) {
             println!("Block {} is bad!", i);
+        } else {
+            println!("Block {} is good!", i);
         }
     }
+    println!("Done checking bad blocks");
     loop {
-        println!("I'm working :D!");
         led_pin.toggle();
         delay_ms(1000, ahb_freq);
 
-        println!("Flash Status Reg {:08b}", flash.read_status_registers());
+        // flash.is_block_bad(0);
+
+        // println!(
+        //     "Flash Status Reg {:08b}",
+        //     flash.read_status_register(WinbondStatusReg::One)
+        // );
 
         // match adc.read_adc_data() {
         //     Ok(data) => {
