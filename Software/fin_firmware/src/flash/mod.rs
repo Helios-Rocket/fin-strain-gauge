@@ -142,19 +142,32 @@ impl WinbondFlash {
         // Enable the QUADSPI peripheral
         regs.cr().modify(|_, w| w.en().enabled());
 
-        let flash = Self {
+        let mut flash = Self {
             clk_freq,
             internal_flash: Flash::new(stm_flash),
             page_count: 0,
             regs,
         };
 
+        flash.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::DeviceReset as u8)
+        });
+        while flash.regs.sr().read().tcf().is_not_complete() {}
+        flash.regs.fcr().write(|w| w.ctcf().clear());
+
+        delay_us(500, clk_freq);
+
+        while flash.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
+
         flash
     }
 
     pub fn is_block_bad(&mut self, addr: u16) -> bool {
-        self.regs.fcr().write(|w| w.ctcf().clear());
-
         self.regs.ccr().write(|w| {
             w.fmode()
                 .indirect_write()
@@ -187,7 +200,7 @@ impl WinbondFlash {
         while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
         // We only need the first byte of data returned, though the flash chip would continue outputting up to 2048 bytes if we wanted
-        self.regs.dlr().write(|w| w.dl().set(0));
+        self.regs.dlr().write(|w| w.dl().set(2047));
         self.regs.ccr().write(|w| {
             w.fmode()
                 .indirect_read()
@@ -207,11 +220,19 @@ impl WinbondFlash {
 
         self.regs.ar().write(|w| w.address().set(0));
 
+        let mut data = [0u8; 2048];
+        for i in 0..2048 {
+            while self.regs.sr().read().flevel().bits() == 0 {}
+            let word = self.regs.dr8().read().bits();
+            data[i] = word;
+        }
+
         while self.regs.sr().read().tcf().is_not_complete() {}
 
-        let word = self.regs.dr8().read().bits();
+        println!("{:x}", data);
 
-        word != 0xff
+        // word != 0xff
+        false
     }
 
     pub fn read_status_register(&mut self, r: WinbondStatusReg) -> u8 {
@@ -219,9 +240,6 @@ impl WinbondFlash {
         // Configuration (SR-2): Bxh
         // Status (SR-3):  Cxh
         // "accessed by Read Status Register and Write Status Register commands combined with 1-Byte Register Address respectively"
-
-        self.regs.fcr().write(|w| w.ctcf().clear()); // Flag clear register, clear the transfer complete flag to 0 
-
         self.regs.dlr().write(|w| w.dl().set(0));
 
         self.regs.ccr().write(|w| {
@@ -266,9 +284,56 @@ impl WinbondFlash {
                 .single_line()
                 .instruction()
                 .set(WinbondInstruction::WriteEnable as u8) //instruction sent to the external device
+                .admode()
+                .no_address()
+                .dmode()
+                .no_data()
         });
 
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait 
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        delay_us(1, self.clk_freq);
+
+        // Erase block
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::BlockErase as u8)
+                .admode()
+                .single_line()
+                .adsize()
+                .bit24()
+        });
+
+        self.regs.ar().write(|w| w.address().set(0));
+        while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait 
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        delay_us(500, self.clk_freq);
+
+        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
+
+        println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
+
+        // Write Enable command
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::WriteEnable as u8) //instruction sent to the external device
+                .admode()
+                .no_address()
+                .dmode()
+                .no_data()
+        });
+
+        while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait 
+        self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
 
         // Quad load program data command- loads data onto 2,112 byte buffer
@@ -295,7 +360,9 @@ impl WinbondFlash {
         }
 
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait 
+        self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
+        println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
 
         // Program execute- transfers the data from the buffer to the designated page
         self.regs.fcr().write(|w| w.ctcf().clear());
@@ -316,7 +383,10 @@ impl WinbondFlash {
             .ar()
             .write(|w| w.address().set(self.page_count as u32));
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait 
+        self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
+
+        println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
 
         //TODO: implement this in not pseudo code
 
