@@ -49,7 +49,7 @@ unsafe fn main() -> ! {
         led_pin.toggle();
         delay_ms(1000, ahb_freq);
 
-        // flash.is_block_bad(0);
+        flash.is_block_bad(500);
 
         // println!(
         //     "Flash Status Reg {:08b}",

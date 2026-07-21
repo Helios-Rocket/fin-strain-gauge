@@ -9,6 +9,9 @@
     pkgs.stlink
     pkgs.flip-link
     pkgs.probe-rs-tools
+    pkgs.gcc-arm-embedded
+    pkgs.llvmPackages_22.bintools-unwrapped
+    pkgs.graphviz
   ];
 
   # https://devenv.sh/languages/
