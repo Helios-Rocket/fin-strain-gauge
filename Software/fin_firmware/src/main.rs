@@ -14,7 +14,6 @@ use hal::{
 use defmt_rtt as _;
 use panic_probe as _;
 
-use crate::flash::WinbondStatusReg;
 mod adc;
 mod flash;
 
