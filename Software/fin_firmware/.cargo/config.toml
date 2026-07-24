@@ -13,3 +13,6 @@ rustflags = [
 [build]
 # Change this target as required for your MCU.
 target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (eg F, L4, G4, H7)
+
+[unstable]
+build-std = ["alloc", "core"]
