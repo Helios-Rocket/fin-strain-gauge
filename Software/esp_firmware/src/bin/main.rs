@@ -6,13 +6,10 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use alloc::format;
-use defmt::{debug, error, info, println, warn};
-use esp_firmware::fin::{self, Fins, GpioPins, PwmPins, SpiPins};
+use defmt::{info, println, warn};
 use esp_firmware::lsm::Lsm;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_firmware::wifi::Wifi;
-use esp_hal::analog::adc::{Adc, AdcConfig};
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::interrupt::software::SoftwareInterruptControl;
@@ -22,9 +19,8 @@ use esp_hal::spi::{
 };
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
-use esp_hal::{dma_buffers, main, mcpwm};
-use fatfs::{FileSystem, FsOptions, Read, Seek, Write};
-use mbr_nostd::{MasterBootRecord, PartitionTable};
+use esp_hal::{main, ram};
+use fatfs::{FileSystem, FsOptions, Read};
 use panic_rtt_target as _;
 
 extern crate alloc;
@@ -37,6 +33,7 @@ esp_bootloader_esp_idf::esp_app_desc!();
 fn main() -> ! {
     rtt_target::rtt_init_defmt!();
 
+    esp_alloc::heap_allocator!(#[ram(reclaimed)] size: 64 * 1024);
     esp_alloc::heap_allocator!(size: 64 * 1024);
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
@@ -67,79 +64,66 @@ fn main() -> ! {
             .build(),
     );
 
-    let mut fins = Fins::new(
-        GpioPins::new(p.GPIO41, p.GPIO42, p.GPIO15, p.GPIO4, p.GPIO6),
-        SpiPins {
-            sck: p.GPIO5.into(),
-            miso: p.GPIO40.into(),
-            mosi: p.GPIO39.into(),
-        },
-        p.SPI3.into(),
-        PwmPins {
-            clk: p.GPIO7.into(),
-        },
-        p.MCPWM0,
-    );
-
-    let mut adc1_config = AdcConfig::new();
-    let mut adc1_pin1 = adc1_config.enable_pin(p.GPIO1, esp_hal::analog::adc::Attenuation::_0dB);
-    let mut adc1_pin2 = adc1_config.enable_pin(p.GPIO2, esp_hal::analog::adc::Attenuation::_0dB);
-    let mut adc1 = Adc::new(p.ADC1, adc1_config);
     let mut remote_start1_en = Output::new(p.GPIO9, Level::High, OutputConfig::default());
     let mut remote_start2_en = Output::new(p.GPIO10, Level::High, OutputConfig::default());
 
-    // let has_sd = match sd.init() {
-    //     Ok(_) => true,
-    //     Err(e) => {
-    //         warn!("No SD card found!");
-    //         false
-    //     }
-    // };
+    let has_sd = match sd.init() {
+        Ok(_) => true,
+        Err(e) => {
+            warn!("No SD card found!");
+            false
+        }
+    };
 
-    // let mut file = Option::None;
-    // let mut fs = Option::None;
+    let mut fs = Option::None;
+    let mut file;
 
-    // if has_sd {
-    //     let fs = fs.insert(
-    //         FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem"),
-    //     );
+    if has_sd {
+        let fs = fs.insert(
+            FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem"),
+        );
 
-    //     let root_dir = fs.root_dir();
+        let root_dir = fs.root_dir();
 
-    //     println!("num items {}", root_dir.iter().count());
+        println!("num items {}", root_dir.iter().count());
 
-    //     file = match root_dir.open_file("FOO.TXT") {
-    //         Ok(f) => Some(f),
-    //         Err(e) => {
-    //             warn!("File FOO.TXT not found");
-    //             None
-    //         }
-    //     };
+        file = match root_dir.open_file("FOO.TXT") {
+            Ok(f) => Some(f),
+            Err(e) => {
+                warn!("File FOO.TXT not found");
+                None
+            }
+        };
 
-    //     if let Some(foo) = &mut file {
-    //         let mut buf = [0_u8; 1024];
-    //         let n = foo.read(&mut buf).expect("read");
-    //         info!(
-    //             "File contents: {}",
-    //             str::from_utf8(&buf[0..n]).expect("convert to utf8")
-    //         );
-    //     }
-    // }
+        if let Some(foo) = &mut file {
+            let mut buf = [0_u8; 1024];
+            let n = foo.read(&mut buf).expect("read");
+            info!(
+                "File contents: {}",
+                str::from_utf8(&buf[0..n]).expect("convert to utf8")
+            );
+        }
+    }
 
-    // let timg0 = TimerGroup::new(p.TIMG0);
-    // esp_rtos::start(timg0.timer0);
-    // let esp_radio_ctrl = esp_radio::init().unwrap();
+    let timg0 = TimerGroup::new(p.TIMG0);
+    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
+    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
 
-    // let mut wifi = Wifi::new(p.WIFI, &esp_radio_ctrl);
-    // let mut next_send_time = Instant::now() + Duration::from_secs(5);
+    let mut wifi = Wifi::new(p.WIFI);
 
-    let mut start = Instant::now();
-    let mut start2 = Instant::now();
-    let mut no_crc_err = 0;
-    let mut crc_err = 0;
+    let mut lsm_last_read = Instant::now();
+    let mut wifi_last_send = Instant::now();
+
     loop {
-        // wifi.receive_data();
-        // if start.elapsed() >= Duration::from_millis(250) {
+        wifi.receive_data();
+        if wifi_last_send.elapsed() >= Duration::from_secs(1) {
+            wifi_last_send = Instant::now();
+            wifi.send_data();
+        }
+        if lsm_last_read.elapsed() >= Duration::from_millis(250) {
+            lsm_last_read = Instant::now();
+            info!("LSM data: {:?}", lsm.read_lsm().1);
+        }
         //     start = Instant::now();
         //     info!(
         //         "Remote Start 1: Pin Level: {}, Current: {}",
@@ -161,40 +145,5 @@ fn main() -> ! {
         //     //     foo.flush().unwrap();
         //     // }
         // }
-
-        // if start2.elapsed() >= Duration::from_secs(1) {
-        //     start2 = Instant::now();
-        //     // remote_start1_en.toggle();
-        //     // remote_start2_en.toggle();
-        // }
-        if start2.elapsed() >= Duration::from_millis(500) {
-            start2 = Instant::now();
-            info!(
-                "CRC Errors: {} ({}%)",
-                crc_err,
-                (crc_err as f64 / (crc_err + no_crc_err) as f64 * 100.0)
-            );
-            crc_err = 0;
-            no_crc_err = 0;
-        }
-        if start.elapsed() >= Duration::from_micros(20000) {
-            // debug!("elapsed: {}", start.elapsed());
-            start = Instant::now();
-            for (i, data) in fins.read_all_data().into_iter().enumerate().take(4) {
-                info!("---Fin {}---", i);
-                match data {
-                    Ok(data) => {
-                        println!("temp: {}", esp_firmware::fin::convert_volts2temp(data[0]));
-                        println!("volts left: {}", data[1]);
-                        println!("volts right: {}", data[2]);
-                        no_crc_err += 1;
-                    }
-                    Err(fin::Error::CRC { computed }) => {
-                        crc_err += 1;
-                        // error!("!!! CRC Failed, got remainder {}", computed)
-                    }
-                }
-            }
-        }
     }
 }
