@@ -148,13 +148,13 @@ impl WinbondFlash {
         while self.regs.sr().read().tcf().is_not_complete() {}
         self.regs.fcr().write(|w| w.ctcf().clear());
 
-        // NOTE: the winbond datasheet says a 5us delays is needed before issuing another command after Page Data Read
-        delay_us(5, self.clk_freq);
+        // NOTE: the winbond datasheet says a 5us delays is needed before issuing another command after Page Data Read, but sometimes we need more than that?
+        delay_us(50, self.clk_freq);
 
         while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
         // We only need the first byte of data returned, though the flash chip would continue outputting up to 2048 bytes if we wanted
-        self.regs.dlr().write(|w| w.dl().set(2047));
+        self.regs.dlr().write(|w| w.dl().set(0));
         self.regs.ccr().write(|w| {
             w.fmode()
                 .indirect_read()
@@ -174,8 +174,8 @@ impl WinbondFlash {
 
         self.regs.ar().write(|w| w.address().set(0));
 
-        let mut data = [0u8; 2048];
-        for i in 0..2048 {
+        let mut data = [0u8; 1];
+        for i in 0..1 {
             while self.regs.sr().read().flevel().bits() == 0 {}
             let word = self.regs.dr8().read().bits();
             data[i] = word;
@@ -183,10 +183,10 @@ impl WinbondFlash {
 
         while self.regs.sr().read().tcf().is_not_complete() {}
 
-        println!("{:x}", data);
+        // println!("{:x}", data);
 
-        // word != 0xff
-        false
+        data[0] != 0xff
+        // false
     }
 
     pub fn read_status_register(&mut self, r: WinbondStatusReg) -> u8 {
