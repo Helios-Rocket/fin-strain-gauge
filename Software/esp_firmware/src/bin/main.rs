@@ -10,6 +10,7 @@ use defmt::{info, println, warn};
 use esp_firmware::lsm::Lsm;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_firmware::wifi::Wifi;
+use esp_hal::analog::adc::{Adc, AdcConfig};
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::interrupt::software::SoftwareInterruptControl;
@@ -64,6 +65,10 @@ fn main() -> ! {
             .build(),
     );
 
+    let mut adc1_config = AdcConfig::new();
+    let mut adc1_pin1 = adc1_config.enable_pin(p.GPIO1, esp_hal::analog::adc::Attenuation::_0dB);
+    let mut adc1_pin2 = adc1_config.enable_pin(p.GPIO2, esp_hal::analog::adc::Attenuation::_0dB);
+    let mut adc1 = Adc::new(p.ADC1, adc1_config);
     let mut remote_start1_en = Output::new(p.GPIO9, Level::High, OutputConfig::default());
     let mut remote_start2_en = Output::new(p.GPIO10, Level::High, OutputConfig::default());
 
