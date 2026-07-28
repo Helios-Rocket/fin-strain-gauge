@@ -117,31 +117,31 @@ fn main() -> ! {
     let mut wifi = Wifi::new(p.WIFI);
 
     let mut lsm_last_read = Instant::now();
-    let mut wifi_last_send = Instant::now();
+    // let mut wifi_last_send = Instant::now();
 
     loop {
-        wifi.receive_data();
-        if wifi_last_send.elapsed() >= Duration::from_secs(1) {
-            wifi_last_send = Instant::now();
-            wifi.send_data();
-        }
+        // wifi.receive_data();
+        // if wifi_last_send.elapsed() >= Duration::from_secs(1) {
+        //     wifi_last_send = Instant::now();
+        //     wifi.send_data();
+        // }
         if lsm_last_read.elapsed() >= Duration::from_millis(250) {
             lsm_last_read = Instant::now();
             info!("LSM data: {:?}", lsm.read_lsm().1);
         }
-        //     start = Instant::now();
-        //     info!(
-        //         "Remote Start 1: Pin Level: {}, Current: {}",
-        //         remote_start1_en.output_level(),
-        //         1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin1) << 4) as i16) >> 4) as f32
-        //             / 20.0
-        //     );
-        //     info!(
-        //         "Remote Start 2: Pin Level: {}, Current: {}",
-        //         remote_start2_en.output_level(),
-        //         1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin2) << 4) as i16) >> 4) as f32
-        //             / 20.0
-        //     );
+
+        info!(
+            "Remote Start 1: Pin Level: {}, Current: {}",
+            remote_start1_en.output_level(),
+            1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin1) << 4) as i16) >> 4) as f32
+                / 20.0
+        );
+        info!(
+            "Remote Start 2: Pin Level: {}, Current: {}",
+            remote_start2_en.output_level(),
+            1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin2) << 4) as i16) >> 4) as f32
+                / 20.0
+        );
         //     // println!("Lsm data: {}", lsm.read_lsm().1);
 
         //     // if let Some(foo) = &mut file {
