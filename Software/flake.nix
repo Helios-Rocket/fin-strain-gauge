@@ -33,6 +33,8 @@
             pkgs.rust-analyzer
             gcc-esp
             pkgs.espflash
+            pkgs.esp-generate
+            pkgs.tio
           ];
           shellHook = ''
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
