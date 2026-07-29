@@ -80,23 +80,11 @@
           ""
         ],
         [
-          "lib_footprint_mismatch|154281895|112341655|afb46469-e6e0-4c7b-b257-b21244fd6ddc|00000000-0000-0000-0000-000000000000",
-          ""
-        ],
-        [
           "silk_edge_clearance|135567600|78746555|dccc2836-6f20-45c4-b61e-e9af64da7b8b|e59809c9-c49c-4754-9041-f557010515ff",
           ""
         ],
         [
           "silk_edge_clearance|153967600|78746555|dccc2836-6f20-45c4-b61e-e9af64da7b8b|12903cce-c97e-4cf9-b697-e331faadce6a",
-          ""
-        ],
-        [
-          "silk_edge_clearance|157480000|109446055|dccc2836-6f20-45c4-b61e-e9af64da7b8b|c876bcc7-d8c4-4fd5-9c1d-c4c85b22f0ea",
-          ""
-        ],
-        [
-          "silk_edge_clearance|157480000|115237255|dccc2836-6f20-45c4-b61e-e9af64da7b8b|c1a7d3cf-b0a3-4002-97ae-629110c8d66a",
           ""
         ]
       ],
