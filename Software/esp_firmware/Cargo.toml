@@ -43,6 +43,7 @@ crc-any = { version = "3.0.1", default-features = false }
 fatfs = { git = "https://github.com/rafalh/rust-fatfs", default-features = false }
 esp-rtos = { version = "0.3.0", features = ["esp32s3", "esp-radio", "defmt"] }
 mbr-nostd = "0.1.0"
+static_cell = "2.1.1"
 
 [profile.dev]
 # Rust debug is too slow.
@@ -57,3 +58,6 @@ incremental      = false
 lto              = 'fat'
 opt-level        = 's'
 overflow-checks  = false
+
+[features]
+logger_print_both = []

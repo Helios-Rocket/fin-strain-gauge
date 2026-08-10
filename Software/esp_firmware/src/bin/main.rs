@@ -6,8 +6,11 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use alloc::format;
 use defmt::{info, println, warn};
+use esp_firmware::logging::Logger;
 use esp_firmware::lsm::Lsm;
+use esp_firmware::now_ms;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_firmware::wifi::Wifi;
 use esp_hal::analog::adc::{Adc, AdcConfig};
@@ -21,14 +24,17 @@ use esp_hal::spi::{
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{main, ram};
-use fatfs::{FileSystem, FsOptions, Read};
+use fatfs::{FileSystem, FsOptions, Read, Write};
 use panic_rtt_target as _;
+use static_cell::StaticCell;
 
 extern crate alloc;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
+
+static FS: StaticCell<Option<FileSystem<SdHost<'static>>>> = StaticCell::new();
 
 #[main]
 fn main() -> ! {
@@ -74,40 +80,40 @@ fn main() -> ! {
 
     let has_sd = match sd.init() {
         Ok(_) => true,
-        Err(e) => {
+        Err(_e) => {
             warn!("No SD card found!");
             false
         }
     };
 
-    let mut fs = Option::None;
-    let mut file;
+    let fs = FS.init(None);
+    let log_file;
+    let mut lsm_log_file = None;
+    let mut logger = Logger::default();
 
     if has_sd {
-        let fs = fs.insert(
-            FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem"),
-        );
-
+        *fs = FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).ok();
+    }
+    if let Some(fs) = fs {
         let root_dir = fs.root_dir();
 
-        println!("num items {}", root_dir.iter().count());
+        log_file = root_dir
+            .create_file("log.txt")
+            .inspect_err(|_e| logger.warn(format_args!("Unable to create or open log.txt")))
+            .ok();
 
-        file = match root_dir.open_file("FOO.TXT") {
-            Ok(f) => Some(f),
-            Err(e) => {
-                warn!("File FOO.TXT not found");
-                None
-            }
-        };
+        if let Some(mut f) = log_file {
+            // Don't really care if this errors
+            #[allow(unused_must_use)]
+            f.truncate();
 
-        if let Some(foo) = &mut file {
-            let mut buf = [0_u8; 1024];
-            let n = foo.read(&mut buf).expect("read");
-            info!(
-                "File contents: {}",
-                str::from_utf8(&buf[0..n]).expect("convert to utf8")
-            );
+            logger.with_file(f);
         }
+
+        lsm_log_file = root_dir
+            .create_file("lsm_data.csv")
+            .inspect_err(|_e| logger.warn(format_args!("Unable to create or open lsm_data.csv")))
+            .ok();
     }
 
     let timg0 = TimerGroup::new(p.TIMG0);
@@ -126,29 +132,28 @@ fn main() -> ! {
         //     wifi.send_data();
         // }
         if lsm_last_read.elapsed() >= Duration::from_millis(250) {
+            logger.info(format_args!("log lsm"));
             lsm_last_read = Instant::now();
-            info!("LSM data: {:?}", lsm.read_lsm().1);
+            if let Some(f) = lsm_log_file.as_mut() {
+                #[allow(unused_must_use)]
+                f.write(format!("{},{:?}\n", now_ms!(), lsm.read_lsm().1).as_bytes());
+
+                #[allow(unused_must_use)]
+                f.flush();
+            }
         }
 
-        info!(
-            "Remote Start 1: Pin Level: {}, Current: {}",
-            remote_start1_en.output_level(),
-            1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin1) << 4) as i16) >> 4) as f32
-                / 20.0
-        );
-        info!(
-            "Remote Start 2: Pin Level: {}, Current: {}",
-            remote_start2_en.output_level(),
-            1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin2) << 4) as i16) >> 4) as f32
-                / 20.0
-        );
-        //     // println!("Lsm data: {}", lsm.read_lsm().1);
-
-        //     // if let Some(foo) = &mut file {
-        //     //     foo.write(format!("{:?}\n", lsm.read_lsm().1).as_bytes())
-        //     //         .unwrap();
-        //     //     foo.flush().unwrap();
-        //     // }
-        // }
+        // info!(
+        //     "Remote Start 1: Pin Level: {}, Current: {}",
+        //     remote_start1_en.output_level(),
+        //     1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin1) << 4) as i16) >> 4) as f32
+        //         / 20.0
+        // );
+        // info!(
+        //     "Remote Start 2: Pin Level: {}, Current: {}",
+        //     remote_start2_en.output_level(),
+        //     1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin2) << 4) as i16) >> 4) as f32
+        //         / 20.0
+        // );
     }
 }
