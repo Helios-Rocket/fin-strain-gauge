@@ -4,6 +4,8 @@
 use adc::ADC;
 use defmt::{error, println};
 use flash::WinbondFlash;
+use statemachine::FinStateMachine;
+use handlers::StateHandler;  
 use hal::{
     clocks::Clocks,
     delay_ms,
@@ -17,8 +19,10 @@ use panic_probe as _;
 use shared::winbond_flash::WinbondStatusReg;
 // use shared::communication::CommunicationProtocol
 
+mod statemachine;
 mod adc;
 mod flash;
+mod handlers;
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
@@ -45,27 +49,6 @@ unsafe fn main() -> ! {
     let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, dp.FLASH, &clock_cfg);
     // TODO: Set up uart/pwm communication pins 
     // TODO: Move stm flash stuff here from out of Winbond Flash
-
-
-    // Central Procedure
-
-    // Check flight mode flag, if on, start recording data state 
-
-    // Else go into wait for command state
-
-    // If erase command received, erase flash, send success flag over UART
-        // Go into wait for command state
-
-    // If start recording received- start recording, iterate page, set flight flag to on,save time, send status 
-        // Go into recording state Every x iteration, send heartbeat pwm
-        // Check for command/make stop recording command an interrupt 
-
-    // If error, go into error state and send error signal 
-
-    // If stop recording command received, stop recording, change to UART, set flight flag to off, send status, total data, etc. 
-        // Go into wait for command state 
-
-
 
 
     // Check if block bad 
@@ -102,5 +85,32 @@ unsafe fn main() -> ! {
         //         error!("Got CRC Error {}", computed)
         //     }
         // }
+
+        // Flight routine
+
+        // TODO: Finish Setup stuff 
+
+        let mut flight_flag = false; // TODO: Pull this from the stm flash rather than setting it 
+
+        let state = FinStateMachine::new(flight_flag); 
+
+        loop{
+
+            // TODO: poll lsm, check for launch and set flight flag accordingly 
+
+            // event should also be triggered by incoming command
+
+            let event = match state{
+                // TODO: Set up so wait does not loop internally and returns a None (no command event)
+                FinStateMachine::WaitForCommand => StateHandler::handle_wait(), 
+                FinStateMachine::RecordData => StateHandler::handle_record_data(), 
+                FinStateMachine::StopRecord => StateHandler::handle_stop_recording(), 
+                FinStateMachine::EraseFlash => StateHandler::handle_erase_flash(), 
+                FinStateMachine::Error => StateHandler::handle_error(error)
+            }; 
+
+            state = state.next(event); 
+
+        }
     }
 }
