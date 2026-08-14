@@ -6100,7 +6100,7 @@
 	)
 	(global_label "SWCLK"
 		(shape input)
-		(at 295.91 93.98 0)
+		(at 295.91 91.44 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6110,7 +6110,7 @@
 		)
 		(uuid "01d4f320-cab4-4e6e-a0a8-8edfcdb3d7c4")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 305.1242 93.98 0)
+			(at 305.1242 91.44 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6122,7 +6122,7 @@
 			)
 		)
 		(property "Netclass" ""
-			(at 295.91 96.1708 0)
+			(at 295.91 93.6308 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6400,7 +6400,7 @@
 	)
 	(global_label "QSPI_IO1"
 		(shape input)
-		(at 295.91 81.28 0)
+		(at 295.91 83.82 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6410,7 +6410,7 @@
 		)
 		(uuid "5aa8933c-70b6-40c7-964b-00c068d8302e")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 307.4224 81.28 0)
+			(at 307.4224 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6472,7 +6472,7 @@
 	)
 	(global_label "QSPI_IO2"
 		(shape input)
-		(at 295.91 83.82 0)
+		(at 295.91 81.28 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6482,7 +6482,7 @@
 		)
 		(uuid "6cad1a4e-48f4-4b2a-ac35-d1e343bde267")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 307.4224 83.82 0)
+			(at 307.4224 81.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6760,7 +6760,7 @@
 	)
 	(global_label "SWDIO"
 		(shape input)
-		(at 295.91 91.44 0)
+		(at 295.91 93.98 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6770,7 +6770,7 @@
 		)
 		(uuid "91881e7e-9c05-4064-b48b-dbc6cd019641")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 304.7614 91.44 0)
+			(at 304.7614 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
