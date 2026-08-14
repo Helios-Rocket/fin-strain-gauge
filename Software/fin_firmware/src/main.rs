@@ -5,6 +5,7 @@ use adc::ADC;
 use defmt::{error, println};
 use flash::WinbondFlash;
 use statemachine::FinStateMachine;
+use statemachine::Event; 
 use handlers::StateHandler;  
 use hal::{
     clocks::Clocks,
@@ -93,20 +94,17 @@ unsafe fn main() -> ! {
         let mut flight_flag = false; // TODO: Pull this from the stm flash rather than setting it 
 
         let state = FinStateMachine::new(flight_flag); 
+        let handler = StateHandler::new(); 
 
         loop{
 
-            // TODO: poll lsm, check for launch and set flight flag accordingly 
-
-            // event should also be triggered by incoming command
-
             let event = match state{
                 // TODO: Set up so wait does not loop internally and returns a None (no command event)
-                FinStateMachine::WaitForCommand => StateHandler::handle_wait(), 
-                FinStateMachine::RecordData => StateHandler::handle_record_data(), 
-                FinStateMachine::StopRecord => StateHandler::handle_stop_recording(), 
-                FinStateMachine::EraseFlash => StateHandler::handle_erase_flash(), 
-                FinStateMachine::Error => StateHandler::handle_error(error)
+                FinStateMachine::WaitForCommand => handler.handle_wait(), 
+                FinStateMachine::RecordData => handler.handle_record_data(heartbeat), 
+                FinStateMachine::StopRecord =>  handler.handle_stop_recording(), 
+                FinStateMachine::EraseFlash =>  handler.handle_erase_flash(), 
+                FinStateMachine::Error =>  handler.handle_error(error)
             }; 
 
             state = state.next(event); 
