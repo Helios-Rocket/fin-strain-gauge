@@ -1,6 +1,7 @@
 
 pub enum FinStateMachine {
     WaitForCommand,
+    WaitForRecordPulse,
     RecordData,
     StopRecord,
     EraseFlash,
@@ -10,9 +11,11 @@ pub enum FinStateMachine {
 pub enum Event {
     EraseCommand,
     RecordCommand,
+    RecordPulseReceived,
     StopCommand,
     Success,
     Fail,
+    // Differentiate between adc crc failure and flash failure stuff 
 }
 
 impl FinStateMachine {
@@ -27,7 +30,8 @@ impl FinStateMachine {
     pub fn next(self, event: Event) -> Self {
         match (self, event) {
             (Self::WaitForCommand, Event::EraseCommand) => Self::EraseFlash,
-            (Self::WaitForCommand, Event::RecordCommand) => Self::RecordData,
+            (Self::WaitForCommand, Event::RecordCommand) => Self::WaitForRecordPulse,
+            (Self::WaitForRecordPulse, Event::RecordPulseReceived) => Self::RecordData,
             (Self::EraseFlash, Event::Success) => Self::WaitForCommand,
             (Self::EraseFlash, Event::Fail) => Self::Error,
             (Self::RecordData, Event::Fail) => Self::Error,

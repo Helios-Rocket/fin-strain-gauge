@@ -5,9 +5,8 @@ use defmt::{info, println};
 use hal::{
     clocks::Clocks,
     delay_ms, delay_us,
-    flash::Flash,
     gpio::{Pin, PinMode, Port},
-    pac::{FLASH, QUADSPI, RCC},
+    pac::{QUADSPI, RCC},
     qspi::Qspi,
 };
 use shared::winbond_flash::{WinbondInstruction, WinbondStatusReg};
@@ -19,13 +18,12 @@ pub const FLASH_SIZE_BYTES: u32 = 512 * PAGES_PER_BLOCK * BYTES_PER_PAGE;
 pub struct WinbondFlash {
     // TODO: Finish this
     clk_freq: u32,
-    internal_flash: Flash,
     page_count: u16,
     regs: QUADSPI,
 }
 
 impl WinbondFlash {
-    pub fn new(rcc: &mut RCC, regs: QUADSPI, stm_flash: FLASH, clk_config: &Clocks) -> Self {
+    pub fn new(rcc: &mut RCC, regs: QUADSPI, clk_config: &Clocks) -> Self {
         println!("New Flash!");
 
         let clk_freq = clk_config.apb1();
@@ -73,7 +71,6 @@ impl WinbondFlash {
 
         let mut flash = Self {
             clk_freq,
-            internal_flash: Flash::new(stm_flash),
             page_count: 0,
             regs,
         };
@@ -341,16 +338,7 @@ impl WinbondFlash {
         delay_us(1, self.clk_freq);
 
         println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
-
-        //TODO: implement this in not pseudo code
-
-        // if (success){
-        //     page_count += 1;
-        //     stm_flash.unlock();
-        //     stm_flash.erase_write_page(0, 0, page_count);
-        //     stm_flash.lock();
-        // }
-
+        
         self.page_count += 1;
     }
 }
