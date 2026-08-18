@@ -13,6 +13,7 @@ use hal::{
     usart::{Usart, UsartInterrupt},
 };
 use shared::winbond_flash;
+use shared::fin_commands; 
 
 pub struct StateHandler {
     adc: ADC,
