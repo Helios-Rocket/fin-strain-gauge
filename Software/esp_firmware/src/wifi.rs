@@ -1,31 +1,22 @@
 use defmt::info;
-use esp_hal::peripherals::WIFI;
 use esp_radio::{
     esp_now::{EspNow, PeerInfo, BROADCAST_ADDRESS},
-    wifi::{ControllerConfig, CountryInfo, WifiController},
+    wifi::WifiController,
 };
 
 pub struct Wifi<'a> {
     esp_now: EspNow<'a>,
-    controller: WifiController<'a>,
 }
 
 impl<'a> Wifi<'a> {
-    pub fn new(wifi: WIFI<'a>) -> Self {
-        let (controller, interfaces) = esp_radio::wifi::new(
-            wifi,
-            ControllerConfig::default().with_country_info(CountryInfo::from(*b"US")),
-        )
-        .unwrap();
-
-        let esp_now = interfaces.esp_now;
-        info!("esp-now version {}", esp_now.version().unwrap());
+    pub fn new(controller: &'a WifiController<'a>) -> Self {
+        let esp_now = controller.esp_now();
+        // info!("esp-now version {}", esp_now.version().unwrap());
         esp_now.set_channel(11).unwrap();
 
-        Self {
-            esp_now,
-            controller,
-        }
+        let this = Self { esp_now };
+
+        this
     }
 
     pub fn send_data(&mut self) {

@@ -1,4 +1,5 @@
 #![no_std]
+pub mod fin_driver;
 pub mod logging;
 pub mod lsm;
 pub mod sd;
