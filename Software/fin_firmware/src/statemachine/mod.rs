@@ -15,12 +15,13 @@ pub enum Event {
     StopCommand,
     Success,
     Fail,
+    Wait,
     // Differentiate between adc crc failure and flash failure stuff 
 }
 
 impl FinStateMachine {
     pub fn new(flight_flag: bool) -> Self {
-        if flight_flag {
+        if flight_flag==true {
             FinStateMachine::RecordData
         } else {
             FinStateMachine::WaitForCommand
