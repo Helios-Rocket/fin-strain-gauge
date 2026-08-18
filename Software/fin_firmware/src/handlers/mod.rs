@@ -50,14 +50,17 @@ impl StateHandler {
     ) -> Self {
         let (page, start_time) = if flight_flag {
             let mut meta = [0u8; 9]; // [flag:1][page:4][start_time:4]
-            internal_flash.read(Bank::B1, 0, 0, &mut meta);
+            internal_flash.read(Bank::B1, 31, 0, &mut meta);
             (
                 u32::from_ne_bytes(meta[1..5].try_into().unwrap()),
                 u32::from_ne_bytes(meta[5..9].try_into().unwrap()),
+                
             )
         } else {
             (0, 0)
         };
+
+        println!("Page and start time recorded {}, {}", page, start_time); 
 
         Self {
             adc,
@@ -83,7 +86,7 @@ impl StateHandler {
 
         self.internal_flash.unlock();
         self.internal_flash
-            .erase_write_page(Bank::B1, 0, &flash_data)
+            .erase_write_page(Bank::B1, 31, &flash_data)
             .ok();
         self.internal_flash.lock();
     }

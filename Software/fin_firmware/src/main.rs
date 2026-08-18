@@ -73,10 +73,13 @@ unsafe fn main() -> ! {
 
     // TODO: Finish Setup stuff 
     let internal_flash = Flash::new(dp.FLASH); 
-    let mut buf: [u8; 32] = [0; 32];
-    internal_flash.read(hal::flash::Bank::B1, 0, 0, &mut buf);
+    let mut buf: [u8;1] = [0u8;1];
+    internal_flash.read(hal::flash::Bank::B1, 31, 0, &mut buf);
+    println!("Internal flash buffer: {}", buf); 
     let flight_flag_byte = buf[0];
-    let flight_flag = flight_flag_byte != 0;
+    let flight_flag = flight_flag_byte == 1;
+
+    println!("Flight Flag detected as: {}", flight_flag); 
 
     let mut timer = Timer::new_tim1(dp.TIM1, ahb_freq as f32, TimerConfig::default(), &clock_cfg); 
     let mut timer_start = timer.now(); 
@@ -102,7 +105,7 @@ unsafe fn main() -> ! {
     // // println!("Done writing first page");#[repr(
     //===================================================
 
-
+    println!("Starting Flight routine"); 
     loop {
         led_pin.toggle();
         delay_ms(1000, ahb_freq);
