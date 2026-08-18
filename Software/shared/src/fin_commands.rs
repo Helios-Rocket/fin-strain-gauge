@@ -1,7 +1,9 @@
-#[repr(u8)]
+use num_enum::TryFromPrimitive;
 
-pub enum FinCommands{
-    Success, 
+#[derive(Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+pub enum FinCommands {
+    Success,
     Failure,
     RecordData,
     StopRecord,
