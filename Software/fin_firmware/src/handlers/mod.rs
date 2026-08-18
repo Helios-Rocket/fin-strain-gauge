@@ -2,21 +2,21 @@ use core::sync::atomic::Ordering;
 use core::time::Duration;
 use core::{mem, u8};
 use cortex_m::{Peripherals, peripheral};
-use defmt::{error, println};
+use defmt::{error, info, println};
 use hal::instant::Instant;
 use hal::pac::TIM1;
-use hal::timer;
+use hal::{access_global, timer};
 
 use crate::adc::{self, ADC};
-use crate::flash::{self,WinbondFlash};
+use crate::flash::{self, WinbondFlash};
 use crate::statemachine::{Event, FinStateMachine};
-use crate::{COMMAND_READY, PULSE_READY};
+use crate::{COMMAND_READY, PULSE_READY, UART};
 use hal::{
     flash::{Bank, Flash},
     gpio::{Edge, Pin, PinMode},
     pac::{USART3, interrupt},
-    usart::{Usart, UsartInterrupt},
     timer::Timer,
+    usart::{Usart, UsartInterrupt},
 };
 use shared::fin_commands::FinCommands;
 use shared::winbond_flash;
@@ -27,7 +27,6 @@ pub struct StateHandler {
     internal_flash: Flash,
     timer: Timer<TIM1>,
     timer_start: Instant,
-    usart: Usart<USART3>,
     pb10: Pin,
     pb11: Pin,
     record_buf: [u32; 512],
@@ -41,9 +40,8 @@ impl StateHandler {
         adc: ADC,
         winbond_flash: WinbondFlash,
         internal_flash: Flash,
-        timer:Timer<TIM1>, 
-        timer_start:Instant,
-        usart: Usart<USART3>,
+        timer: Timer<TIM1>,
+        timer_start: Instant,
         pb10: Pin,
         pb11: Pin,
         flight_flag: bool,
@@ -54,13 +52,12 @@ impl StateHandler {
             (
                 u32::from_ne_bytes(meta[1..5].try_into().unwrap()),
                 u32::from_ne_bytes(meta[5..9].try_into().unwrap()),
-                
             )
         } else {
             (0, 0)
         };
 
-        println!("Page and start time recorded {}, {}", page, start_time); 
+        println!("Page and start time recorded {}, {}", page, start_time);
 
         Self {
             adc,
@@ -68,7 +65,6 @@ impl StateHandler {
             internal_flash,
             timer,
             timer_start,
-            usart,
             pb10,
             pb11,
             record_buf: [0u32; 512],
@@ -99,13 +95,19 @@ impl StateHandler {
         }
         COMMAND_READY.store(false, Ordering::Release);
 
-        self.usart.clear_interrupt(UsartInterrupt::Idle);
+        critical_section::with(|cs| {
+            access_global!(UART, uart, cs);
+            uart.clear_interrupt(UsartInterrupt::Idle);
+        });
         unsafe {
             cortex_m::peripheral::NVIC::unmask(interrupt::USART3);
         }
 
         let mut command = [0u8; 4];
-        self.usart.read(&mut command);
+        critical_section::with(|cs| {
+            access_global!(UART, uart, cs);
+            uart.read(&mut command);
+        });
 
         if &command[0..3] == b"FIN" {
             match FinCommands::try_from(command[3]).unwrap() {
@@ -113,17 +115,19 @@ impl StateHandler {
                 FinCommands::EraseFlash => Event::EraseCommand,
                 _ => Event::Wait,
             }
-        }
-        else{
+        } else {
             Event::Wait
-        }        
+        }
     }
 
     pub fn handle_wait_for_pulse(&mut self) -> Event {
         println!("Entered wait for pulse handler");
 
-        self.usart.disable_interrupt(UsartInterrupt::Idle);
-        self.pb10.mode(PinMode::Input);
+        critical_section::with(|cs| {
+            access_global!(UART, uart, cs);
+            uart.disable_interrupt(UsartInterrupt::ReadNotEmpty);
+        });
+        self.pb10.mode(PinMode::Output);
         self.pb11.mode(PinMode::Input);
         self.pb11.enable_interrupt(Edge::Falling);
         unsafe {
@@ -137,12 +141,9 @@ impl StateHandler {
 
         self.pb11.clear_interrupt();
         self.pb11.enable_interrupt(Edge::Rising);
-        unsafe {
-            cortex_m::peripheral::NVIC::unmask(interrupt::EXTI15_10);
-        }
 
-        self.start_time = self.timer.elapsed(self.timer_start); 
-       
+        self.start_time = self.timer.elapsed(self.timer_start);
+
         Event::RecordPulseReceived
     }
 
@@ -153,7 +154,7 @@ impl StateHandler {
             unsafe {
                 cortex_m::peripheral::NVIC::unmask(interrupt::EXTI15_10);
             }
-            return Event::StopCommand; 
+            return Event::StopCommand;
         }
 
         match self.adc.read_adc_data() {
@@ -166,7 +167,10 @@ impl StateHandler {
                         self.winbond_flash.write_page(self.record_buf);
                         self.record_idx = 0;
                         self.page += 1;
-                        self.usart.write(&[1]).ok();
+                        critical_section::with(|cs| {
+                            access_global!(UART, uart, cs);
+                            uart.write(&[1]).ok();
+                        });
                         self.persist_status(true);
                     }
                 }
@@ -181,12 +185,11 @@ impl StateHandler {
     }
 
     pub fn handle_stop_recording(&mut self) -> Event {
-        
-        // Finish recording final buffer 
+        // Finish recording final buffer
         self.winbond_flash.write_page(self.record_buf);
         self.page += 1;
 
-        // Set flight flag to off 
+        // Set flight flag to off
         self.persist_status(false);
 
         Event::Success
@@ -194,10 +197,9 @@ impl StateHandler {
 
     pub fn handle_erase_flash(&mut self) -> Event {
         match self.winbond_flash.erase_chip() {
-            Ok(()) => {return Event::Success}
-            Err(flash::Error::FailToErase) => {return Event::Fail}
-            Err(flash::Error::FailToWrite) => {return Event::Wait} //figure out best way to error handle 
-            
+            Ok(()) => return Event::Success,
+            Err(flash::Error::FailToErase) => return Event::Fail,
+            Err(flash::Error::FailToWrite) => return Event::Wait, //figure out best way to error handle
         }
     }
 
