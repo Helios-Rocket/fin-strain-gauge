@@ -10,16 +10,13 @@
 use core::fmt::Write;
 
 use alloc::format;
-use embedded_io::ReadReady;
 use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
-use esp_hal::time::{Duration, Instant};
+use esp_hal::main;
 use esp_hal::timer::timg::TimerGroup;
-use esp_hal::uart::Uart;
-use esp_hal::{main, uart};
+use esp_hal::usb_serial_jtag::UsbSerialJtag;
 use esp_radio::esp_now::BROADCAST_ADDRESS;
 use esp_radio::wifi::{ControllerConfig, CountryInfo};
-use log::info;
 use shared::remote_commands;
 
 extern crate alloc;
@@ -59,32 +56,36 @@ fn main() -> ! {
     let _ = p.GPIO16;
     let _ = p.GPIO20;
 
-    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 98768);
+    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 66320);
 
     let timg0 = TimerGroup::new(p.TIMG0);
     let sw_interrupt = esp_hal::interrupt::software::SoftwareInterruptControl::new(p.SW_INTERRUPT);
     esp_rtos::start(timg0.timer0, sw_interrupt.software_interrupt0);
-    let (mut _wifi_controller, mut interfaces) = esp_radio::wifi::new(
+    let (mut _wifi_controller, interfaces) = esp_radio::wifi::new(
         p.WIFI,
         ControllerConfig::default().with_country_info(CountryInfo::from(*b"US")),
     )
     .expect("Failed to initialize Wi-Fi controller");
 
+    let mut usb = UsbSerialJtag::new(p.USB_DEVICE);
+
     let mut esp_now = interfaces.esp_now;
     esp_now.set_channel(11).unwrap();
 
-    let mut uart = Uart::new(p.UART0, uart::Config::default().with_baudrate(115200))
-        .expect("UART0")
-        .with_tx(p.GPIO1)
-        .with_rx(p.GPIO3);
+    // let mut uart = Uart::new(p.UART0, uart::Config::default().with_baudrate(115200))
+    //     .expect("UART0")
+    //     .with_tx(p.GPIO21)
+    //     .with_rx(p.GPIO20);
 
     let mut uart_buf = [0_u8; 4096];
     let mut idx = 0;
 
+    // let delay = Delay::new();
+
     loop {
-        if uart.read_ready() {
-            let n = uart.read(&mut uart_buf[idx..]).expect("read");
-            idx += n;
+        while let Ok(d) = usb.read_byte() {
+            uart_buf[idx] = d;
+            idx += 1;
             if idx != 0 && uart_buf[idx - 1] == b'\n' {
                 if let Some(cmd) = match str::from_utf8(&uart_buf[..idx - 1]).unwrap() {
                     "fin erase" => Some(remote_commands::Command::EraseFinFlashes),
@@ -95,7 +96,7 @@ fn main() -> ! {
                     "video start" => Some(remote_commands::Command::StartLiveVideo),
                     "video stop" => Some(remote_commands::Command::StopLiveVideo),
                     cmd => {
-                        uart.write_str(&format!("Invalid command: {:?}\n", cmd))
+                        usb.write_str(&format!("Invalid command: {:?}\n", cmd))
                             .expect("write");
                         None
                     }

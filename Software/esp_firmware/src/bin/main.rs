@@ -6,13 +6,20 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use alloc::format;
 use defmt::{info, println, warn};
+use esp_firmware::fin_driver::Fins;
+use esp_firmware::logging::Logger;
 use esp_firmware::lsm::Lsm;
+use esp_firmware::now_ms;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_firmware::wifi::Wifi;
+// use esp_firmware::wifi::Wifi;
 use esp_hal::analog::adc::{Adc, AdcConfig};
 use esp_hal::clock::CpuClock;
-use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::delay::Delay;
+use esp_hal::gpio::dedicated::{DedicatedGpio, DedicatedGpioOutput};
+use esp_hal::gpio::{Level, NoPin, Output, OutputConfig, Pin};
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::spi::{
     master::{Config, Spi},
@@ -20,15 +27,20 @@ use esp_hal::spi::{
 };
 use esp_hal::time::{Duration, Instant, Rate};
 use esp_hal::timer::timg::TimerGroup;
+use esp_hal::uart::{self, Uart};
 use esp_hal::{main, ram};
-use fatfs::{FileSystem, FsOptions, Read};
+use esp_radio::wifi::{self, WifiController};
+use fatfs::{FileSystem, FsOptions, Read, Write};
 use panic_rtt_target as _;
+use static_cell::StaticCell;
 
 extern crate alloc;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
+
+static FS: StaticCell<Option<FileSystem<SdHost<'static>>>> = StaticCell::new();
 
 #[main]
 fn main() -> ! {
@@ -38,7 +50,7 @@ fn main() -> ! {
     esp_alloc::heap_allocator!(size: 64 * 1024);
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let p = esp_hal::init(config);
+    let mut p = esp_hal::init(config);
 
     let spi = Spi::new(
         p.SPI2,
@@ -74,81 +86,137 @@ fn main() -> ! {
 
     let has_sd = match sd.init() {
         Ok(_) => true,
-        Err(e) => {
+        Err(_e) => {
             warn!("No SD card found!");
             false
         }
     };
 
-    let mut fs = Option::None;
-    let mut file;
+    let fs = FS.init(None);
+    let log_file;
+    let mut lsm_log_file = None;
+    let mut logger = Logger::default();
 
     if has_sd {
-        let fs = fs.insert(
-            FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).expect("filesystem"),
-        );
-
+        *fs = FileSystem::new(sd, FsOptions::new().update_accessed_date(false)).ok();
+    }
+    if let Some(fs) = fs {
         let root_dir = fs.root_dir();
 
-        println!("num items {}", root_dir.iter().count());
+        log_file = root_dir
+            .create_file("log.txt")
+            .inspect_err(|_e| logger.warn(format_args!("Unable to create or open log.txt")))
+            .ok();
 
-        file = match root_dir.open_file("FOO.TXT") {
-            Ok(f) => Some(f),
-            Err(e) => {
-                warn!("File FOO.TXT not found");
-                None
-            }
-        };
+        if let Some(mut f) = log_file {
+            // Don't really care if this errors
+            #[allow(unused_must_use)]
+            f.truncate();
 
-        if let Some(foo) = &mut file {
-            let mut buf = [0_u8; 1024];
-            let n = foo.read(&mut buf).expect("read");
-            info!(
-                "File contents: {}",
-                str::from_utf8(&buf[0..n]).expect("convert to utf8")
-            );
+            logger.with_file(f);
         }
+
+        lsm_log_file = root_dir
+            .create_file("lsm_data.csv")
+            .inspect_err(|_e| logger.warn(format_args!("Unable to create or open lsm_data.csv")))
+            .ok();
     }
+
+    let mut fin_controller = Fins::new(
+        p.UART1,
+        p.GPIO_DEDICATED,
+        p.GPIO4.degrade(),
+        p.GPIO5.degrade(),
+        p.GPIO6.degrade(),
+        p.GPIO7.degrade(),
+        p.GPIO15.degrade(),
+        p.GPIO16.degrade(),
+        p.GPIO40.degrade(),
+        p.GPIO39.degrade(),
+    );
 
     let timg0 = TimerGroup::new(p.TIMG0);
     let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
     esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
 
-    let mut wifi = Wifi::new(p.WIFI);
+    let wifi_controller = WifiController::new(
+        p.WIFI,
+        wifi::ControllerConfig::default().with_country_info(*b"US"),
+    )
+    .expect("init wifi");
+    let mut wifi = Wifi::new(&wifi_controller);
 
-    let mut lsm_last_read = Instant::now();
+    // let mut lsm_last_read = Instant::now();
+    // let mut last_fin_comms = Instant::now();
     // let mut wifi_last_send = Instant::now();
 
     loop {
+        // if last_fin_comms.elapsed() >= Duration::from_millis(200) {
+        // last_fin_comms = Instant::now();
+
+        // delay.delay_millis(5);
+        // {
+        //     let mut uart = Uart::new(
+        //         p.UART2.reborrow(),
+        //         uart::Config::default().with_baudrate(1200),
+        //     )
+        //     .unwrap()
+        //     .with_tx(p.GPIO5.reborrow());
+        //     // uart.write(b"b").unwrap();
+        //     uart.flush().unwrap();
+        // }
+        // delay.delay_millis(5);
+        // {
+        //     let mut uart = Uart::new(
+        //         p.UART1.reborrow(),
+        //         uart::Config::default().with_baudrate(1200),
+        //     )
+        //     .unwrap()
+        //     .with_tx(p.GPIO5.reborrow());
+        //     uart.write(b"c").unwrap();
+        //     uart.flush().unwrap();
+        // }
+        // delay.delay_millis(5);
+        // {
+        //     let mut uart = Uart::new(
+        //         p.UART1.reborrow(),
+        //         uart::Config::default().with_baudrate(1200),
+        //     )
+        //     .unwrap()
+        //     .with_tx(p.GPIO5.reborrow());
+        //     uart.write(b"d").unwrap();
+        //     uart.flush().unwrap();
+        // }
+        // fin_controller.start_fins();
+        // }
         // wifi.receive_data();
         // if wifi_last_send.elapsed() >= Duration::from_secs(1) {
         //     wifi_last_send = Instant::now();
         //     wifi.send_data();
         // }
-        if lsm_last_read.elapsed() >= Duration::from_millis(250) {
-            lsm_last_read = Instant::now();
-            info!("LSM data: {:?}", lsm.read_lsm().1);
-        }
+        // if lsm_last_read.elapsed() >= Duration::from_millis(250) {
+        //     logger.info(format_args!("log lsm"));
+        //     lsm_last_read = Instant::now();
+        //     if let Some(f) = lsm_log_file.as_mut() {
+        //         #[allow(unused_must_use)]
+        //         f.write(format!("{},{:?}\n", now_ms!(), lsm.read_lsm().1).as_bytes());
 
-        info!(
-            "Remote Start 1: Pin Level: {}, Current: {}",
-            remote_start1_en.output_level(),
-            1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin1) << 4) as i16) >> 4) as f32
-                / 20.0
-        );
-        info!(
-            "Remote Start 2: Pin Level: {}, Current: {}",
-            remote_start2_en.output_level(),
-            1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin2) << 4) as i16) >> 4) as f32
-                / 20.0
-        );
-        //     // println!("Lsm data: {}", lsm.read_lsm().1);
-
-        //     // if let Some(foo) = &mut file {
-        //     //     foo.write(format!("{:?}\n", lsm.read_lsm().1).as_bytes())
-        //     //         .unwrap();
-        //     //     foo.flush().unwrap();
-        //     // }
+        //         #[allow(unused_must_use)]
+        //         f.flush();
+        //     }
         // }
+
+        // info!(
+        //     "Remote Start 1: Pin Level: {}, Current: {}",
+        //     remote_start1_en.output_level(),
+        //     1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin1) << 4) as i16) >> 4) as f32
+        //         / 20.0
+        // );
+        // info!(
+        //     "Remote Start 2: Pin Level: {}, Current: {}",
+        //     remote_start2_en.output_level(),
+        //     1100.0 / 4096.0 * (((adc1.read_blocking(&mut adc1_pin2) << 4) as i16) >> 4) as f32
+        //         / 20.0
+        // );
     }
 }
