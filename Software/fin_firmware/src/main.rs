@@ -118,7 +118,6 @@ unsafe fn main() -> ! {
         // Flight routine
 
         let event = match state{
-            // TODO: Set up so wait does not loop internally and returns a None (no command event)
             FinStateMachine::WaitForCommand => handler.handle_wait_for_command(), 
             FinStateMachine::WaitForRecordPulse => handler.handle_wait_for_pulse(),
             FinStateMachine::RecordData => handler.handle_record_data(heartbeat), 

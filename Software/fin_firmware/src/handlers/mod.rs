@@ -79,7 +79,6 @@ impl StateHandler {
     pub fn handle_wait_for_command(&mut self) -> Event {
         println!("Entered Wait for Command Handler");
 
-        // TODO: I think this is blocking, check against other ways to do this because the stop command will need it
         while !COMMAND_READY.load(Ordering::Acquire) {
             cortex_m::asm::wfi();
         }
@@ -146,7 +145,6 @@ impl StateHandler {
           
         }
 
-        // Go into recording state Every x iteration, send heartbeat pwm
         if heartbeat {
             self.usart.write(&[1]).ok();
         }
