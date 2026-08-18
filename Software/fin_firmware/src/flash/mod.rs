@@ -10,6 +10,10 @@ use hal::{
     qspi::Qspi,
 };
 use shared::winbond_flash::{WinbondInstruction, WinbondStatusReg};
+pub enum Error{
+    FailToErase,
+    FailToWrite,
+}
 
 pub const BYTES_PER_PAGE: u32 = 2048;
 pub const PAGES_PER_BLOCK: u32 = 64;
@@ -224,50 +228,6 @@ impl WinbondFlash {
     }
 
     pub fn write_page(&mut self, data: [u32; 512]) {
-        // Check designated page is erased (FFh), if not, erase, if yes, continue
-
-        // // Write Enable command
-        // self.regs.fcr().write(|w| w.ctcf().clear());
-        // self.regs.ccr().write(|w| {
-        //     w.fmode()
-        //         .indirect_write()
-        //         .imode()
-        //         .single_line()
-        //         .instruction()
-        //         .set(WinbondInstruction::WriteEnable as u8) //instruction sent to the external device
-        //         .admode()
-        //         .no_address()
-        //         .dmode()
-        //         .no_data()
-        // });
-
-        // while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
-        // self.regs.fcr().write(|w| w.ctcf().clear());
-        // delay_us(1, self.clk_freq);
-
-        // // Erase block
-        // self.regs.ccr().write(|w| {
-        //     w.fmode()
-        //         .indirect_write()
-        //         .imode()
-        //         .single_line()
-        //         .instruction()
-        //         .set(WinbondInstruction::BlockErase as u8)
-        //         .admode()
-        //         .single_line()
-        //         .adsize()
-        //         .bit24()
-        // });
-
-        // self.regs.ar().write(|w| w.address().set(0));
-        // while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
-        // self.regs.fcr().write(|w| w.ctcf().clear());
-        // delay_us(500, self.clk_freq);
-
-        // while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
-
-        // println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
-
         // Write Enable command
         self.regs.fcr().write(|w| w.ctcf().clear());
         self.regs.ccr().write(|w| {
@@ -340,5 +300,47 @@ impl WinbondFlash {
         println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
         
         self.page_count += 1;
+    }
+
+    pub fn erase_chip(&mut self) -> Result<(), Error>{
+        // Write Enable command
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::WriteEnable as u8) //instruction sent to the external device
+                .admode()
+                .no_address()
+                .dmode()
+                .no_data()
+        });
+
+        while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        delay_us(1, self.clk_freq);
+
+        // Erase block
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::ChipErase as u8)
+                .admode()
+                .single_line()
+                .adsize()
+                .bit24()
+        });
+
+        self.regs.ar().write(|w| w.address().set(0));
+        while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        delay_us(500, self.clk_freq);
+
+        Ok(())
     }
 }

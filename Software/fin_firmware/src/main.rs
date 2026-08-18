@@ -78,8 +78,11 @@ unsafe fn main() -> ! {
     let flight_flag_byte = buf[0];
     let flight_flag = flight_flag_byte != 0;
 
+    let mut timer = Timer::new_tim1(dp.TIM1, ahb_freq as f32, TimerConfig::default(), &clock_cfg); 
+    let mut timer_start = timer.now(); 
+
     let mut state = FinStateMachine::new(flight_flag);
-    let mut handler = StateHandler::new(adc, flash, internal_flash, usart3, pb10, pb11, flight_flag);
+    let mut handler = StateHandler::new(adc, flash, internal_flash, timer, timer_start,usart3, pb10, pb11, flight_flag);
 
 
     //========= Old Flash stuff =========================
@@ -98,9 +101,7 @@ unsafe fn main() -> ! {
     // // flash.write_page(data);
     // // println!("Done writing first page");#[repr(
     //===================================================
-    let mut heart_timer = Timer::new_tim1(dp.TIM1, ahb_freq as f32, TimerConfig::default(), &clock_cfg); 
-    let mut heartbeat   = false;
-    let mut timer_start = heart_timer.now(); 
+
 
     loop {
         led_pin.toggle();
@@ -113,17 +114,12 @@ unsafe fn main() -> ! {
         //     flash.read_status_register(WinbondStatusReg::Three)
         // );
 
-        if heart_timer.elapsed(timer_start) > Duration::from_secs(1){
-            heartbeat = true;
-            timer_start = heart_timer.now(); 
-        }
-
         // Flight routine
 
         let event = match state{
             FinStateMachine::WaitForCommand => handler.handle_wait_for_command(), 
             FinStateMachine::WaitForRecordPulse => handler.handle_wait_for_pulse(),
-            FinStateMachine::RecordData => handler.handle_record_data(heartbeat), 
+            FinStateMachine::RecordData => handler.handle_record_data(), 
             FinStateMachine::StopRecord =>  handler.handle_stop_recording(), 
             FinStateMachine::EraseFlash =>  handler.handle_erase_flash(), 
             FinStateMachine::Error =>  handler.handle_error(),
@@ -146,3 +142,6 @@ fn EXTI15_10() {
     cortex_m::peripheral::NVIC::mask(interrupt::EXTI15_10);
     PULSE_READY.store(true, Ordering::Release);
 }
+
+
+//Stop recording rising, start recording falling 
