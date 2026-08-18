@@ -3,7 +3,9 @@
 
 use adc::ADC;
 use hal::pac::i2c1::cr2::HEAD10R;
+use hal::timer::TimerConfig;
 use core::sync::atomic::{AtomicBool, Ordering};
+use core::time::Duration;
 use defmt::{error, println};
 use flash::WinbondFlash;
 use hal::usart::UsartConfig;
@@ -19,7 +21,8 @@ use hal::{
     usart::Usart,
     instant::Instant,
     gpio::{Pin, PinMode, Port},
-    pac::{self, interrupt, FLASH, USART3},
+    pac::{self, interrupt},
+    timer::Timer,
 };
 
 use defmt_rtt as _;
@@ -75,7 +78,7 @@ unsafe fn main() -> ! {
     let flight_flag_byte = buf[0];
     let flight_flag = flight_flag_byte != 0;
 
-    let state = FinStateMachine::new(flight_flag);
+    let mut state = FinStateMachine::new(flight_flag);
     let mut handler = StateHandler::new(adc, flash, internal_flash, usart3, pb10, pb11, flight_flag);
 
 
@@ -95,7 +98,9 @@ unsafe fn main() -> ! {
     // // flash.write_page(data);
     // // println!("Done writing first page");#[repr(
     //===================================================
-
+    let mut heart_timer = Timer::new_tim1(dp.TIM1, ahb_freq as f32, TimerConfig::default(), &clock_cfg); 
+    let mut heartbeat   = false;
+    let mut timer_start = heart_timer.now(); 
 
     loop {
         led_pin.toggle();
@@ -108,11 +113,9 @@ unsafe fn main() -> ! {
         //     flash.read_status_register(WinbondStatusReg::Three)
         // );
 
-        let mut heartbeat   = false;
-        let mut start = Instant::as_secs(&self);
-
-        if start + Instant::as_secs(&self) > 1.0{
-            heartbeat = true; 
+        if heart_timer.elapsed(timer_start) > Duration::from_secs(1){
+            heartbeat = true;
+            timer_start = heart_timer.now(); 
         }
 
         // Flight routine
