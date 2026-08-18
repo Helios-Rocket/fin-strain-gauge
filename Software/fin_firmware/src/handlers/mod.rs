@@ -1,4 +1,5 @@
 use core::sync::atomic::Ordering;
+use core::{mem, u8};
 use cortex_m::{Peripherals, peripheral};
 use defmt::{error, println};
 
@@ -13,7 +14,7 @@ use hal::{
     usart::{Usart, UsartInterrupt},
 };
 use shared::winbond_flash;
-use shared::fin_commands; 
+use shared::fin_commands::FinCommands; 
 
 pub struct StateHandler {
     adc: ADC,
@@ -94,7 +95,7 @@ impl StateHandler {
         let command = self.usart.read_one();
 
         match command {
-            _ => Event::RecordCommand,
+           2 => Event::RecordCommand,
         }
     }
 
@@ -140,7 +141,7 @@ impl StateHandler {
             // TODO: decode against the real protocol once it exists.
             let _command = self.usart.read_one();
 
-            if command = STOP_COMMAND{ //Fix this with real commands  
+            if command == FinCommands::StopRecord{ //Fix this with real commands  
                   return Event::StopCommand;
             }
           
