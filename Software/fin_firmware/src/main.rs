@@ -19,7 +19,7 @@ use hal::{
     gpio::{Pin, PinMode, Port},
     instant::Instant,
     pac::{self, interrupt},
-    timer::Timer,
+    timer::{self, Timer},
     usart::Usart,
 };
 use handlers::StateHandler;
@@ -65,36 +65,40 @@ unsafe fn main() -> ! {
     // Setup Peripherals
     let mut led_pin = Pin::new(Port::B, 5, PinMode::Output);
     let mut adc = ADC::new(dp.TIM2, dp.SPI2, &clock_cfg);
-    // TODO: Set up better write methods for the windbond
     let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
 
     // Comm pins to Avbay
     let mut pb10 = Pin::new(Port::B, 10, PinMode::Alt(7));
     let mut pb11 = Pin::new(Port::B, 11, PinMode::Alt(7));
-    let usart3 = Usart::new(dp.USART3, 9600, UsartConfig::default(), &clock_cfg)
+    let usart3 = Usart::new(dp.USART3, 1200, UsartConfig::default(), &clock_cfg)
         .expect("Failed to initialize");
 
     init_globals!((UART, usart3));
 
-    setup_nvic!([(USART3, 2), (EXTI15_10, 1)], cp);
+    setup_nvic!([(USART3, 2), (EXTI15_10, 1), (TIM16, 0)], cp);
     // Enable interrupt
     critical_section::with(|cs| {
         access_global!(UART, uart, cs);
-        uart.enable_interrupt(UsartInterrupt::Idle);
+        uart.enable_interrupt(UsartInterrupt::ReadNotEmpty);
     });
 
-    // TODO: Finish Setup stuff
     let internal_flash = Flash::new(dp.FLASH);
     let mut buf: [u8; 1] = [0u8; 1];
     internal_flash.read(hal::flash::Bank::B1, 31, 0, &mut buf);
     println!("Internal flash buffer: {}", buf);
     let flight_flag_byte = buf[0];
-    let flight_flag = flight_flag_byte == 1;
+    let flight_flag = false; //flight_flag_byte == 1;
 
     println!("Flight Flag detected as: {}", flight_flag);
 
-    let mut timer = Timer::new_tim1(dp.TIM1, ahb_freq as f32, TimerConfig::default(), &clock_cfg);
-    let mut timer_start = timer.now();
+    let timer_config = TimerConfig{update_request_source: hal::timer::UpdateReqSrc::OverUnderFlow, ..Default::default()}; 
+
+    let mut timer = Timer::new_tim1(dp.TIM1, 1000 as f32, timer_config, &clock_cfg);
+    timer.enable_interrupt(hal::timer::TimerInterrupt::Update);
+    timer.enable();
+    println!("Enabled?: {}", timer.is_enabled()); 
+    let timer_start = timer.now();
+    println!("Timer Start: {}", timer_start.as_nanos()); 
 
     let mut state = FinStateMachine::new(flight_flag);
     let mut handler = StateHandler::new(
@@ -111,15 +115,7 @@ unsafe fn main() -> ! {
     info!("{}", state);
 
     //========= Old Flash stuff =========================
-    // // Check if block bad
-    // for i in 0..512 {
-    //     if flash.is_block_bad(i) {
-    //         println!("Block {} is bad!", i);
-    //     }
-    //     else {
-    //         println!("Block {} is good!", i);
-    //     }
-    // }
+    // Check if block bad
     // // flash.is_block_bad(0);
     // println!("Done checking bad blocks");
     // // let data = [0xAAAAAAAAu32; 512];
@@ -129,8 +125,8 @@ unsafe fn main() -> ! {
 
     println!("Starting Flight routine");
     loop {
-        led_pin.toggle();
-        delay_ms(1000, ahb_freq);
+        // led_pin.toggle();
+        // delay_ms(1000, ahb_freq);
 
         // println!(
         //     "Flash Status Regs {:08b} {:08b} {:08b}",
@@ -141,7 +137,7 @@ unsafe fn main() -> ! {
 
         // Flight routine
 
-        info!("about to handle event");
+        //info!("about to handle event");
         let event = match state {
             FinStateMachine::WaitForCommand => handler.handle_wait_for_command(),
             FinStateMachine::WaitForRecordPulse => handler.handle_wait_for_pulse(),
@@ -152,6 +148,8 @@ unsafe fn main() -> ! {
         };
 
         state = state.next(event);
+
+
     }
 }
 
@@ -165,8 +163,18 @@ fn EXTI15_10() {
 fn USART3() {
     critical_section::with(|cs| {
         access_global!(UART, uart, cs);
-        uart.clear_interrupt(UsartInterrupt::Idle);
+        uart.clear_interrupt(UsartInterrupt::ReadNotEmpty);
     });
     COMMAND_READY.store(true, Ordering::Release);
+}
+
+#[interrupt]
+fn TIM16() {  // use whatever name matched above
+    unsafe {
+        let regs = &(*pac::TIM1::ptr());
+        regs.sr().write(|w| w.bits(0xffff_ffff).uif().clear_bit());
+    }
+    
+    timer::TICK_OVERFLOW_COUNT.fetch_add(1, Ordering::Relaxed);
 }
 //Stop recording rising, start recording falling

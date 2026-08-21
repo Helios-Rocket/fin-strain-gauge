@@ -10,7 +10,9 @@ use hal::{
     qspi::Qspi,
 };
 use shared::winbond_flash::{WinbondInstruction, WinbondStatusReg};
-pub enum Error{
+
+#[derive(Debug)]
+pub enum Error {
     FailToErase,
     FailToWrite,
 }
@@ -144,7 +146,7 @@ impl WinbondFlash {
 
         self.regs
             .ar()
-            .write(|w| w.address().set((addr * 16) as u32));
+            .write(|w| w.address().set((addr * 64) as u32));
 
         while self.regs.sr().read().tcf().is_not_complete() {}
         self.regs.fcr().write(|w| w.ctcf().clear());
@@ -298,11 +300,74 @@ impl WinbondFlash {
         delay_us(1, self.clk_freq);
 
         println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
-        
+
         self.page_count += 1;
     }
 
-    pub fn erase_chip(&mut self) -> Result<(), Error>{
+    pub fn read_page(&mut self, addr: u16) {
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::PageDataRead as u8)
+                .admode()
+                .single_line()
+                .adsize()
+                .bit24() /* NOTE: the address is only 16 bits, but we need 8 dummy cycles between the instruction and address,
+                   so the 8 MSB of the address (which will all be 0) are used for that purpose.
+                   Also note that we cannot use the data section to send the address, since the STM32L412 has errata relating to using dummy cycles
+                   along with data which causes the first nibble of the data to be lost if any dummy cycles are used
+                */
+                .dmode()
+                .no_data()
+        });
+
+        self.regs.ar().write(|w| w.address().set((addr) as u32));
+
+        while self.regs.sr().read().tcf().is_not_complete() {}
+        self.regs.fcr().write(|w| w.ctcf().clear());
+
+        // NOTE: the winbond datasheet says a 5us delays is needed before issuing another command after Page Data Read, but sometimes we need more than that?
+        delay_us(50, self.clk_freq);
+
+        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
+
+        // We only need the first byte of data returned, though the flash chip would continue outputting up to 2048 bytes if we wanted
+        self.regs.dlr().write(|w| w.dl().set(2047));
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_read()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::FastReadQuadOutput as u8)
+                .admode()
+                .single_line()
+                .adsize()
+                .bit16()
+                .dcyc()
+                .set(8)
+                .dmode()
+                .four_lines()
+        });
+
+        self.regs.ar().write(|w| w.address().set(0));
+
+        let mut data = [0u8; 2048];
+        for i in 0..2048 {
+            while self.regs.sr().read().flevel().bits() == 0 {}
+            let word = self.regs.dr8().read().bits();
+            data[i] = word;
+        }
+
+        while self.regs.sr().read().tcf().is_not_complete() {}
+
+        println!("{:x}", data);
+    }
+
+    pub fn erase_chip(&mut self) -> Result<(), Error> {
         // Write Enable command
         self.regs.fcr().write(|w| w.ctcf().clear());
         self.regs.ccr().write(|w| {
@@ -322,7 +387,7 @@ impl WinbondFlash {
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
 
-        // Erase block
+        // Erase Chip
         self.regs.ccr().write(|w| {
             w.fmode()
                 .indirect_write()
@@ -332,14 +397,14 @@ impl WinbondFlash {
                 .set(WinbondInstruction::ChipErase as u8)
                 .admode()
                 .single_line()
-                .adsize()
-                .bit24()
+                .admode()
+                .no_address()
         });
 
-        self.regs.ar().write(|w| w.address().set(0));
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(500, self.clk_freq);
+        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
         Ok(())
     }
