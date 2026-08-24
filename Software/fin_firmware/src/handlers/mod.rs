@@ -1,7 +1,7 @@
 use core::sync::atomic::Ordering;
 use core::time::Duration;
 use core::{mem, u8};
-use cortex_m::{Peripherals, peripheral};
+use cortex_m::{Peripherals, delay, peripheral};
 use defmt::{error, info, println};
 use hal::instant::Instant;
 use hal::pac::TIM1;
@@ -12,6 +12,7 @@ use crate::flash::{self, WinbondFlash};
 use crate::statemachine::{Event, FinStateMachine};
 use crate::{COMMAND_READY, PULSE_READY, UART};
 use hal::{
+    delay_ms,
     flash::{Bank, Flash},
     gpio::{Edge, Pin, PinMode},
     pac::{USART3, interrupt},
@@ -75,10 +76,18 @@ impl StateHandler {
     }
 
     fn persist_status(&mut self, recording: bool) {
-        let mut flash_data = [0u8; 9];
+        let mut flash_data = [0u8; 21];
         flash_data[0] = recording as u8;
         flash_data[1..5].copy_from_slice(&self.page.to_ne_bytes());
-        flash_data[5..9].copy_from_slice(&self.start_time.as_millis().to_ne_bytes());
+        println!("here");
+        flash_data[5..21].copy_from_slice(&self.start_time.as_millis().to_ne_bytes());
+
+        let mut buf: [u8; 9] = [0u8; 9];
+        self.internal_flash
+            .read(hal::flash::Bank::B1, 31, 0, &mut buf);
+        println!("Internal flash flag: {}", buf[0]);
+        println!("Internal flash page: {}", buf[1..5]);
+        println!("Internal flash time: {}", buf[5..9]);
 
         self.internal_flash.unlock();
         self.internal_flash
@@ -97,7 +106,7 @@ impl StateHandler {
 
         critical_section::with(|cs| {
             access_global!(UART, uart, cs);
-            uart.clear_interrupt(UsartInterrupt::Idle);
+            uart.clear_interrupt(UsartInterrupt::ReadNotEmpty);
         });
         unsafe {
             cortex_m::peripheral::NVIC::unmask(interrupt::USART3);
@@ -108,6 +117,9 @@ impl StateHandler {
             access_global!(UART, uart, cs);
             uart.read(&mut command);
         });
+
+        println!("Received Command: {}", command[0..3]);
+        println!("Received Command: {}", command[3]); 
 
         if &command[0..3] == b"FIN" {
             match FinCommands::try_from(command[3]).unwrap() {
@@ -142,13 +154,20 @@ impl StateHandler {
         self.pb11.clear_interrupt();
         self.pb11.enable_interrupt(Edge::Rising);
 
+        // let start = self.timer.now();
+
+        // while self.timer.elapsed(start).as_nanos() < 2000000000{
+        //     //println!("time {} ", self.timer.elapsed(start).as_nanos());
+        // }
+
         self.start_time = self.timer.elapsed(self.timer_start);
+        println!("Recording Started at Time {}", self.start_time.as_millis());
 
         Event::RecordPulseReceived
     }
 
     pub fn handle_record_data(&mut self) -> Event {
-        println!("Entered Record Data Handler");
+        //println!("Entered Record Data Handler");
 
         if PULSE_READY.swap(false, Ordering::Acquire) {
             unsafe {
@@ -159,18 +178,32 @@ impl StateHandler {
 
         match self.adc.read_adc_data() {
             Ok(samples) => {
+                // Record sample time
+
+                self.record_buf[self.record_idx] =
+                    self.timer.elapsed(self.timer_start).as_millis() as u32;
+                self.record_idx += 1;
+
+                //println!("ADC Reading: {}", samples);
+
+                // Record Sample
                 for channel in samples {
+                    // Record time as well?
                     self.record_buf[self.record_idx] = (channel as f32).to_bits();
                     self.record_idx += 1;
+                    // println!("Idx: {}", self.record_idx);
+                    // println!("Buff: {}", self.record_buf);
 
                     if self.record_idx == self.record_buf.len() {
+                        println!("Writing to Flash");
                         self.winbond_flash.write_page(self.record_buf);
                         self.record_idx = 0;
                         self.page += 1;
-                        critical_section::with(|cs| {
-                            access_global!(UART, uart, cs);
-                            uart.write(&[1]).ok();
-                        });
+                        // critical_section::with(|cs| {
+                        //     access_global!(UART, uart, cs);
+                        //     uart.write(&[1]).ok();
+                        // });
+                        println!("Wrote to Flash");
                         self.persist_status(true);
                     }
                 }
@@ -185,6 +218,7 @@ impl StateHandler {
     }
 
     pub fn handle_stop_recording(&mut self) -> Event {
+        println!("Stop recording handler entered");
         // Finish recording final buffer
         self.winbond_flash.write_page(self.record_buf);
         self.page += 1;
@@ -196,8 +230,16 @@ impl StateHandler {
     }
 
     pub fn handle_erase_flash(&mut self) -> Event {
+        println!("Erase flash handler entered");
         match self.winbond_flash.erase_chip() {
-            Ok(()) => return Event::Success,
+            Ok(()) => {
+                critical_section::with(|cs| {
+                    access_global!(UART, uart, cs);
+                    uart.write(b"FIN"); 
+                    uart.write(&[FinCommands::Success as u8]); 
+                });
+                Event::Success
+            }
             Err(flash::Error::FailToErase) => return Event::Fail,
             Err(flash::Error::FailToWrite) => return Event::Wait, //figure out best way to error handle
         }
