@@ -1,6 +1,6 @@
 use num_enum::TryFromPrimitive;
 
-#[derive(Eq, PartialEq, TryFromPrimitive)]
+#[derive(Copy, Clone, Eq, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum FinCommands {
     Success,

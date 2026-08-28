@@ -51,6 +51,9 @@ esp-rtos = { git = "https://github.com/esp-rs/esp-hal",  features = ["esp32s3", 
 mbr-nostd = "0.1.0"
 static_cell = "2.1.1"
 
+shared = { path = "../shared" }
+num_enum = { version = "0.7.6", default-features = false }
+
 [profile.dev]
 # Rust debug is too slow.
 # For debug builds always builds with some optimization
