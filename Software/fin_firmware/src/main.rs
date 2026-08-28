@@ -2,6 +2,7 @@
 #![no_main]
 
 use adc::ADC;
+use cortex_m::delay;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use defmt::{error, info, println};
@@ -11,7 +12,7 @@ use hal::pac::i2c1::cr2::HEAD10R;
 use hal::timer::TimerConfig;
 use hal::usart::UsartConfig;
 use hal::usart::UsartInterrupt;
-use hal::{access_global, gpio, init_globals, make_globals, setup_nvic};
+use hal::{access_global, gpio, init_globals, make_globals, make_simple_globals, setup_nvic, BaudPeriph};
 use hal::{
     clocks::Clocks,
     delay_ms,
@@ -40,6 +41,14 @@ mod statemachine;
 
 pub static COMMAND_READY: AtomicBool = AtomicBool::new(false);
 pub static PULSE_READY: AtomicBool = AtomicBool::new(false);
+
+// Filled in one byte at a time by the USART3 RXNE interrupt. `RX_LEN` is how many
+// bytes have landed since the last Idle-line event; the Idle interrupt snapshots
+// and resets it, so a frame is only considered valid (and COMMAND_READY set) if
+// exactly 4 bytes showed up between idle periods. This decouples byte reception
+// from the (slow, blocking) command handler, so a gap between bytes on the wire
+// no longer desyncs or corrupts the buffer.
+make_simple_globals!((RX_BUF, [u8; 4], [0u8; 4]), (RX_LEN, usize, 0));
 
 make_globals!((UART, Usart<USART3>),);
 
@@ -70,8 +79,11 @@ unsafe fn main() -> ! {
     // Comm pins to Avbay
     let mut pb10 = Pin::new(Port::B, 10, PinMode::Alt(7));
     let mut pb11 = Pin::new(Port::B, 11, PinMode::Alt(7));
-    let usart3 = Usart::new(dp.USART3, 1200, UsartConfig::default(), &clock_cfg)
+    let usart3 = Usart::new(dp.USART3, 1800, UsartConfig::default(), &clock_cfg)
         .expect("Failed to initialize");
+    let uart_regs = unsafe{USART3::steal()}; 
+    println!("fclk/baud: {}", (USART3::baud(&clock_cfg)/1200) as u16); 
+    println!("Baud: {}", uart_regs.brr().read().bits()); 
 
     init_globals!((UART, usart3));
 
@@ -79,6 +91,7 @@ unsafe fn main() -> ! {
     // Enable interrupt
     critical_section::with(|cs| {
         access_global!(UART, uart, cs);
+        uart.enable_interrupt(UsartInterrupt::Idle);
         uart.enable_interrupt(UsartInterrupt::ReadNotEmpty);
     });
 
@@ -112,8 +125,6 @@ unsafe fn main() -> ! {
         flight_flag,
     );
 
-    info!("{}", state);
-
     //========= Old Flash stuff =========================
     // Check if block bad
     // // flash.is_block_bad(0);
@@ -124,7 +135,24 @@ unsafe fn main() -> ! {
     //===================================================
 
     println!("Starting Flight routine");
+
     loop {
+
+        // while !uart_regs.isr().read().rxne().bit_is_set(){}
+
+        // println!("UART isr reading: {:b}", uart_regs.isr().read().bits()); 
+        
+        // println!("UART Reading: {:x}", uart_regs.rdr().read().rdr().bits()); 
+
+        // println!("UART isr reading: {:b}", uart_regs.isr().read().bits()); 
+
+        // critical_section::with(|cs| {
+        //     access_global!(UART, uart, cs);
+        //     uart.write(b"A").unwrap(); 
+        //     println!("Sending UART Msg"); 
+        // });
+        // delay_ms(2000, ahb_freq);
+
         // led_pin.toggle();
         // delay_ms(1000, ahb_freq);
 
@@ -137,7 +165,7 @@ unsafe fn main() -> ! {
 
         // Flight routine
 
-        //info!("about to handle event");
+        info!("about to handle event");
         let event = match state {
             FinStateMachine::WaitForCommand => handler.handle_wait_for_command(),
             FinStateMachine::WaitForRecordPulse => handler.handle_wait_for_pulse(),
@@ -163,9 +191,41 @@ fn EXTI15_10() {
 fn USART3() {
     critical_section::with(|cs| {
         access_global!(UART, uart, cs);
-        uart.clear_interrupt(UsartInterrupt::ReadNotEmpty);
+
+        // An overrun blocks further reception until cleared; clear it unconditionally
+        // so a missed byte doesn't wedge the line permanently.
+        if uart.check_status_flag(UsartInterrupt::Overrun) {
+            uart.clear_interrupt(UsartInterrupt::Overrun);
+        }
+
+        // Pull in a byte as soon as it lands, independent of Idle. This is what lets
+        // a command survive being sent with gaps between bytes: each byte is captured
+        // the moment it arrives instead of being blocking-read after the fact.
+        if uart.check_status_flag(UsartInterrupt::ReadNotEmpty) {
+            let byte = uart.read_one();
+            let len = RX_LEN.borrow(cs).get();
+            if len < 4 {
+                let mut buf = RX_BUF.borrow(cs).get();
+                buf[len] = byte;
+                RX_BUF.borrow(cs).set(buf);
+                RX_LEN.borrow(cs).set(len + 1);
+            }
+        }
+
+        // Idle marks the end of a frame: snapshot how many bytes arrived since the
+        // last Idle and reset the counter. Only signal a command if we actually got
+        // a full 4-byte frame; a short/garbage frame (e.g. a spurious early Idle) is
+        // silently dropped instead of being handed to the handler as-is.
+        if uart.check_status_flag(UsartInterrupt::Idle) {
+            uart.clear_interrupt(UsartInterrupt::Idle);
+            let len = RX_LEN.borrow(cs).get();
+            RX_LEN.borrow(cs).set(0);
+            if len == 4 {
+                COMMAND_READY.store(true, Ordering::Release);
+            }
+        }
     });
-    COMMAND_READY.store(true, Ordering::Release);
+    println!("wah");
 }
 
 #[interrupt]

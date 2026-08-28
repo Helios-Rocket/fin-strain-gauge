@@ -10,7 +10,7 @@ use hal::{access_global, timer};
 use crate::adc::{self, ADC};
 use crate::flash::{self, WinbondFlash};
 use crate::statemachine::{Event, FinStateMachine};
-use crate::{COMMAND_READY, PULSE_READY, UART};
+use crate::{COMMAND_READY, PULSE_READY, RX_BUF, RX_LEN, UART};
 use hal::{
     delay_ms,
     flash::{Bank, Flash},
@@ -99,27 +99,29 @@ impl StateHandler {
     pub fn handle_wait_for_command(&mut self) -> Event {
         println!("Entered Wait for Command Handler");
 
+        // Make sure reception is armed and we're not carrying over a stale partial
+        // count from a previous state (e.g. WaitForPulse disables these).
+        critical_section::with(|cs| {
+            access_global!(UART, uart, cs);
+            uart.enable_interrupt(UsartInterrupt::Idle);
+            uart.enable_interrupt(UsartInterrupt::ReadNotEmpty);
+            RX_LEN.borrow(cs).set(0);
+        });
+
+        println!("got here"); 
+
         while !COMMAND_READY.load(Ordering::Acquire) {
             cortex_m::asm::wfi();
         }
+
+        // Bytes were already captured one-at-a-time by the USART3 ISR; just read
+        // out the completed frame it assembled.
+        let command = critical_section::with(|cs| RX_BUF.borrow(cs).get());
+
         COMMAND_READY.store(false, Ordering::Release);
 
-        critical_section::with(|cs| {
-            access_global!(UART, uart, cs);
-            uart.clear_interrupt(UsartInterrupt::ReadNotEmpty);
-        });
-        unsafe {
-            cortex_m::peripheral::NVIC::unmask(interrupt::USART3);
-        }
-
-        let mut command = [0u8; 4];
-        critical_section::with(|cs| {
-            access_global!(UART, uart, cs);
-            uart.read(&mut command);
-        });
-
-        println!("Received Command: {}", command[0..3]);
-        println!("Received Command: {}", command[3]); 
+        println!("Received Command: {}", command);
+        //println!("Received Command: {}", command[3]); 
 
         if &command[0..3] == b"FIN" {
             match FinCommands::try_from(command[3]).unwrap() {
@@ -137,6 +139,7 @@ impl StateHandler {
 
         critical_section::with(|cs| {
             access_global!(UART, uart, cs);
+            uart.disable_interrupt(UsartInterrupt::Idle);
             uart.disable_interrupt(UsartInterrupt::ReadNotEmpty);
         });
         self.pb10.mode(PinMode::Output);
@@ -235,6 +238,7 @@ impl StateHandler {
             Ok(()) => {
                 critical_section::with(|cs| {
                     access_global!(UART, uart, cs);
+                    println!("Success in erasing"); 
                     uart.write(b"FIN"); 
                     uart.write(&[FinCommands::Success as u8]); 
                 });
@@ -247,6 +251,7 @@ impl StateHandler {
 
     pub fn handle_error(&mut self) -> Event {
         // Send error signal over uart
+        println!("Error State Entered"); 
         Event::Success
     }
 }
