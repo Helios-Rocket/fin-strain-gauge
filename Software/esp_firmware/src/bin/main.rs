@@ -6,32 +6,28 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use alloc::format;
-use defmt::{info, println, warn};
+use defmt::{error, info, warn};
 use esp_firmware::fin_driver::Fins;
 use esp_firmware::logging::Logger;
 use esp_firmware::lsm::Lsm;
-use esp_firmware::now_ms;
 use esp_firmware::sd::{pins::PinsBuilder as SdPinsBuilder, SdHost};
 use esp_firmware::wifi::Wifi;
 // use esp_firmware::wifi::Wifi;
 use esp_hal::analog::adc::{Adc, AdcConfig};
 use esp_hal::clock::CpuClock;
-use esp_hal::delay::Delay;
-use esp_hal::gpio::dedicated::{DedicatedGpio, DedicatedGpioOutput};
-use esp_hal::gpio::{Level, NoPin, Output, OutputConfig, Pin};
+use esp_hal::gpio::{Level, Output, OutputConfig, Pin};
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::spi::{
     master::{Config, Spi},
     Mode,
 };
-use esp_hal::time::{Duration, Instant, Rate};
+use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
-use esp_hal::uart::{self, Uart};
 use esp_hal::{main, ram};
 use esp_radio::wifi::{self, WifiController};
-use fatfs::{FileSystem, FsOptions, Read, Write};
+use fatfs::{FileSystem, FsOptions};
 use panic_rtt_target as _;
+use shared::remote_commands;
 use static_cell::StaticCell;
 
 extern crate alloc;
@@ -51,6 +47,23 @@ fn main() -> ! {
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let mut p = esp_hal::init(config);
+
+    let (mut fin_controller, fins_idle) = Fins::new(
+        p.UART1,
+        p.GPIO_DEDICATED,
+        p.GPIO4.degrade(),
+        p.GPIO5.degrade(),
+        p.GPIO6.degrade(),
+        p.GPIO7.degrade(),
+        p.GPIO15.degrade(),
+        p.GPIO16.degrade(),
+        p.GPIO40.degrade(),
+        p.GPIO39.degrade(),
+    )
+    .expect("Failed to setup fins");
+
+    let mut fins_idle = Some(fins_idle);
+    let mut fins_started = None;
 
     let spi = Spi::new(
         p.SPI2,
@@ -122,19 +135,6 @@ fn main() -> ! {
             .ok();
     }
 
-    let mut fin_controller = Fins::new(
-        p.UART1,
-        p.GPIO_DEDICATED,
-        p.GPIO4.degrade(),
-        p.GPIO5.degrade(),
-        p.GPIO6.degrade(),
-        p.GPIO7.degrade(),
-        p.GPIO15.degrade(),
-        p.GPIO16.degrade(),
-        p.GPIO40.degrade(),
-        p.GPIO39.degrade(),
-    );
-
     let timg0 = TimerGroup::new(p.TIMG0);
     let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
     esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
@@ -150,45 +150,42 @@ fn main() -> ! {
     // let mut last_fin_comms = Instant::now();
     // let mut wifi_last_send = Instant::now();
 
-    loop {
-        // if last_fin_comms.elapsed() >= Duration::from_millis(200) {
-        // last_fin_comms = Instant::now();
+    let mut wifi_buf = [0u8; 256];
 
-        // delay.delay_millis(5);
-        // {
-        //     let mut uart = Uart::new(
-        //         p.UART2.reborrow(),
-        //         uart::Config::default().with_baudrate(1200),
-        //     )
-        //     .unwrap()
-        //     .with_tx(p.GPIO5.reborrow());
-        //     // uart.write(b"b").unwrap();
-        //     uart.flush().unwrap();
-        // }
-        // delay.delay_millis(5);
-        // {
-        //     let mut uart = Uart::new(
-        //         p.UART1.reborrow(),
-        //         uart::Config::default().with_baudrate(1200),
-        //     )
-        //     .unwrap()
-        //     .with_tx(p.GPIO5.reborrow());
-        //     uart.write(b"c").unwrap();
-        //     uart.flush().unwrap();
-        // }
-        // delay.delay_millis(5);
-        // {
-        //     let mut uart = Uart::new(
-        //         p.UART1.reborrow(),
-        //         uart::Config::default().with_baudrate(1200),
-        //     )
-        //     .unwrap()
-        //     .with_tx(p.GPIO5.reborrow());
-        //     uart.write(b"d").unwrap();
-        //     uart.flush().unwrap();
-        // }
-        // fin_controller.start_fins();
-        // }
+    loop {
+        let n = wifi.receive_data(&mut wifi_buf);
+        if n > 0 {
+            use remote_commands::Command;
+            if let Ok(cmd) = Command::try_from(wifi_buf[0]) {
+                match cmd {
+                    Command::EraseFinFlashes => {
+                        if let Some(idle) = fins_idle.as_ref() {
+                            info!("{}", fin_controller.erase_fin_flashes(idle));
+                        } else {
+                            error!("Fins must be idle to erase their flashes");
+                        }
+                    }
+                    Command::ArmFins => {
+                        if let Some(idle) = fins_idle.take() {
+                            let (started, errs) = fin_controller.start_fins(idle);
+                            fins_started = Some(started);
+                            info!("{}", errs);
+                        } else {
+                            error!("Fins must be idle before starting them");
+                        }
+                    }
+                    Command::DisarmFins => {
+                        if let Some(started) = fins_started.take() {
+                            fins_idle = Some(fin_controller.stop_fins(started));
+                        } else {
+                            error!("Fins must be started before they can be stopeed");
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         // wifi.receive_data();
         // if wifi_last_send.elapsed() >= Duration::from_secs(1) {
         //     wifi_last_send = Instant::now();

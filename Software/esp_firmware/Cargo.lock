@@ -1095,8 +1095,10 @@ dependencies = [
  "esp32s3",
  "fatfs",
  "mbr-nostd",
+ "num_enum",
  "panic-rtt-target",
  "rtt-target",
+ "shared",
  "smoltcp",
  "static_cell",
 ]
@@ -1436,6 +1438,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_enum"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d0bca838442ec211fa11de3a8b0e0e8f3a4522575b5c4c06ed722e005036f26"
+dependencies = [
+ "num_enum_derive",
+ "rustversion",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "object"
 version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1715,6 +1738,13 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest 0.11.3",
+]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "num_enum",
 ]
 
 [[package]]

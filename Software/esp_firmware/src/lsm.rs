@@ -1,4 +1,4 @@
-use defmt::{info, Format};
+use defmt::Format;
 use esp_hal::{
     gpio::{Level, Output, OutputConfig, OutputPin},
     spi::master::Spi,
@@ -11,8 +11,10 @@ const OUT_REG_START_ADDR: u8 = 0x22;
 const STATUS_REG_ADDR: u8 = 0x1E;
 
 const XL_FS_32G: u8 = 0b01;
+#[allow(non_upper_case_globals)]
 const XL_ODR_166kHZ: u8 = 0b1000;
 const G_FS_32G: u8 = 0b11;
+#[allow(non_upper_case_globals)]
 const G_ODR_166kHZ: u8 = 0b1000;
 
 pub struct Lsm<'a> {
@@ -88,13 +90,16 @@ impl<'a> Lsm<'a> {
             accel_z: (buf[10] as i16) | (buf[11] as i16) << 8,
         };
 
-        (raw_data, Data {
-            gyro_x: raw_data.gyro_x as f32 * 70.0/1000.0,
-            gyro_y: raw_data.gyro_y as f32 * 70.0/1000.0, 
-            gyro_z: raw_data.gyro_z as f32 * 70.0/1000.0,
-            accel_x: raw_data.accel_x as f32 * 0.976/1000.0 * 9.81,
-            accel_y: raw_data.accel_y as f32 * 0.976/1000.0 * 9.81,
-            accel_z: raw_data.accel_z as f32 * 0.976/1000.0 * 9.81,
-        })
+        (
+            raw_data,
+            Data {
+                gyro_x: raw_data.gyro_x as f32 * 70.0 / 1000.0,
+                gyro_y: raw_data.gyro_y as f32 * 70.0 / 1000.0,
+                gyro_z: raw_data.gyro_z as f32 * 70.0 / 1000.0,
+                accel_x: raw_data.accel_x as f32 * 0.976 / 1000.0 * 9.81,
+                accel_y: raw_data.accel_y as f32 * 0.976 / 1000.0 * 9.81,
+                accel_z: raw_data.accel_z as f32 * 0.976 / 1000.0 * 9.81,
+            },
+        )
     }
 }
