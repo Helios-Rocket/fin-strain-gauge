@@ -127,10 +127,10 @@ impl StateHandler {
             match FinCommands::try_from(command[3]).unwrap() {
                 FinCommands::RecordData => Event::RecordCommand,
                 FinCommands::EraseFlash => Event::EraseCommand,
-                _ => Event::Wait,
+                _ => Event::Continue,
             }
         } else {
-            Event::Wait
+            Event::Continue
         }
     }
 
@@ -199,7 +199,7 @@ impl StateHandler {
 
                     if self.record_idx == self.record_buf.len() {
                         println!("Writing to Flash");
-                        self.winbond_flash.write_page(self.record_buf);
+                        self.winbond_flash.write_page(self.record_buf); // Have this return an error
                         self.record_idx = 0;
                         self.page += 1;
                         // critical_section::with(|cs| {
@@ -210,7 +210,7 @@ impl StateHandler {
                         self.persist_status(true);
                     }
                 }
-                Event::Wait
+                Event::Continue
             }
 
             Err(adc::Error::CRC { computed }) => {
@@ -245,8 +245,19 @@ impl StateHandler {
                 Event::Success
             }
             Err(flash::Error::FailToErase) => return Event::Fail,
-            Err(flash::Error::FailToWrite) => return Event::Wait, //figure out best way to error handle
+            Err(flash::Error::FailToWrite) => return Event::Continue, //figure out best way to error handle
         }
+    }
+
+    pub fn handle_status_cmd(&mut self) -> Event{
+
+         critical_section::with(|cs| {
+            access_global!(UART, uart, cs);
+            uart.write(b"A").unwrap(); 
+            println!("Sending UART Msg"); 
+          
+        });
+        Event::Success
     }
 
     pub fn handle_error(&mut self) -> Event {

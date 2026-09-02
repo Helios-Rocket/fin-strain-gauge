@@ -50,7 +50,11 @@ pub static PULSE_READY: AtomicBool = AtomicBool::new(false);
 // no longer desyncs or corrupts the buffer.
 make_simple_globals!((RX_BUF, [u8; 4], [0u8; 4]), (RX_LEN, usize, 0));
 
-make_globals!((UART, Usart<USART3>),);
+make_globals!((UART, Usart<USART3>), 
+              (ADC_CRC_ERROR, (u32, bool)), 
+              (ADC_SPI_READ_ERROR, (u32, bool)), 
+              (ADC_SPI_WRITE_ERROR, (u32, bool)),
+              (WINBOND_ERROR, (u32, bool)));
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {

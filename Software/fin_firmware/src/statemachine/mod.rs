@@ -2,6 +2,7 @@
 pub enum FinStateMachine {
     WaitForCommand,
     WaitForRecordPulse,
+    SendStatus,
     RecordData,
     StopRecord,
     EraseFlash,
@@ -15,8 +16,7 @@ pub enum Event {
     StopCommand,
     Success,
     Fail,
-    Wait,
-    // Differentiate between adc crc failure and flash failure stuff
+    Continue,
 }
 
 impl FinStateMachine {
