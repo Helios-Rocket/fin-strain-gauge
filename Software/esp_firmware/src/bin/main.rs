@@ -6,6 +6,7 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use alloc::format;
 use defmt::{error, info, warn};
 use esp_firmware::fin_driver::Fins;
 use esp_firmware::logging::Logger;
@@ -27,7 +28,7 @@ use esp_hal::{main, ram};
 use esp_radio::wifi::{self, WifiController};
 use fatfs::{FileSystem, FsOptions};
 use panic_rtt_target as _;
-use shared::remote_commands;
+use shared::remote_commands::{self, REMOTE_HEADER};
 use static_cell::StaticCell;
 
 extern crate alloc;
@@ -155,34 +156,44 @@ fn main() -> ! {
     loop {
         let n = wifi.receive_data(&mut wifi_buf);
         if n > 0 {
-            use remote_commands::Command;
-            if let Ok(cmd) = Command::try_from(wifi_buf[0]) {
-                match cmd {
-                    Command::EraseFinFlashes => {
-                        if let Some(idle) = fins_idle.as_ref() {
-                            info!("{}", fin_controller.erase_fin_flashes(idle));
-                        } else {
-                            error!("Fins must be idle to erase their flashes");
+            if n > REMOTE_HEADER.len() && &wifi_buf[0..REMOTE_HEADER.len()] == REMOTE_HEADER {
+                use remote_commands::Command;
+                if let Ok(cmd) = Command::try_from(wifi_buf[REMOTE_HEADER.len()]) {
+                    let resp = match cmd {
+                        Command::EraseFinFlashes => {
+                            if let Some(idle) = fins_idle.as_ref() {
+                                &format!("{:?}", fin_controller.erase_fin_flashes(idle))
+                            } else {
+                                "Not erasing fins: must be idle (stopped) first"
+                            }
                         }
-                    }
-                    Command::ArmFins => {
-                        if let Some(idle) = fins_idle.take() {
-                            let (started, errs) = fin_controller.start_fins(idle);
-                            fins_started = Some(started);
-                            info!("{}", errs);
-                        } else {
-                            error!("Fins must be idle before starting them");
+                        Command::ArmFins => {
+                            if let Some(idle) = fins_idle.take() {
+                                let (started, errs) = fin_controller.start_fins(idle);
+                                fins_started = Some(started);
+                                &format!("{:?}", errs)
+                            } else {
+                                "Not starting fins: must be idle (stopped) first"
+                            }
                         }
-                    }
-                    Command::DisarmFins => {
-                        if let Some(started) = fins_started.take() {
-                            fins_idle = Some(fin_controller.stop_fins(started));
-                        } else {
-                            error!("Fins must be started before they can be stopeed");
+                        Command::DisarmFins => {
+                            if let Some(started) = fins_started.take() {
+                                fins_idle = Some(fin_controller.stop_fins(started));
+                                "Ok"
+                            } else {
+                                "Not stopping fins: must be started first"
+                            }
                         }
-                    }
-                    _ => {}
+                        _ => "Unimplemented",
+                    };
+
+                    wifi.send_response(resp.as_bytes());
+                } else {
+                    // TODO: actually handle this with nested enums or smth
+                    warn!("Got remote command, but it is not intended for us");
                 }
+            } else {
+                warn!("Got wifi data, but it is not a remote command");
             }
         }
 

@@ -15,9 +15,9 @@ use esp_hal::clock::CpuClock;
 use esp_hal::main;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::usb_serial_jtag::UsbSerialJtag;
-use esp_radio::esp_now::BROADCAST_ADDRESS;
+use esp_radio::esp_now::{BROADCAST_ADDRESS, PeerInfo};
 use esp_radio::wifi::{ControllerConfig, CountryInfo};
-use shared::remote_commands;
+use shared::remote_commands::{COMMANDS, REMOTE_HEADER};
 
 extern crate alloc;
 
@@ -72,40 +72,51 @@ fn main() -> ! {
     let mut esp_now = interfaces.esp_now;
     esp_now.set_channel(11).unwrap();
 
-    // let mut uart = Uart::new(p.UART0, uart::Config::default().with_baudrate(115200))
-    //     .expect("UART0")
-    //     .with_tx(p.GPIO21)
-    //     .with_rx(p.GPIO20);
+    let mut peer_addr = BROADCAST_ADDRESS;
 
     let mut uart_buf = [0_u8; 4096];
     let mut idx = 0;
-
-    // let delay = Delay::new();
 
     loop {
         while let Ok(d) = usb.read_byte() {
             uart_buf[idx] = d;
             idx += 1;
             if idx != 0 && uart_buf[idx - 1] == b'\n' {
-                if let Some(cmd) = match str::from_utf8(&uart_buf[..idx - 1]).unwrap() {
-                    "fin erase" => Some(remote_commands::Command::EraseFinFlashes),
-                    "fin arm" => Some(remote_commands::Command::ArmFins),
-                    "fin disarm" => Some(remote_commands::Command::DisarmFins),
-                    "altimeter arm" => Some(remote_commands::Command::ArmAltimeter),
-                    "altimeter disarm" => Some(remote_commands::Command::DisarmAltimeter),
-                    "video start" => Some(remote_commands::Command::StartLiveVideo),
-                    "video stop" => Some(remote_commands::Command::StopLiveVideo),
-                    cmd => {
-                        usb.write_str(&format!("Invalid command: {:?}\n", cmd))
-                            .expect("write");
-                        None
-                    }
-                } {
+                if let Some(cmd) = COMMANDS
+                    .iter()
+                    .find(|c| c.0 == str::from_utf8(&uart_buf[..idx - 1]).unwrap())
+                    .map(|c| c.1)
+                {
                     esp_now
-                        .send(&BROADCAST_ADDRESS, &[cmd as u8])
+                        .send(
+                            &peer_addr,
+                            [REMOTE_HEADER, &[cmd as u8]].concat().as_slice(),
+                        )
                         .unwrap()
                         .wait()
                         .unwrap();
+
+                    loop {
+                        let r = esp_now.receive();
+                        if let Some(r) = r {
+                            if !esp_now.peer_exists(&r.info.src_address) {
+                                esp_now
+                                    .add_peer(PeerInfo {
+                                        interface: esp_radio::esp_now::EspNowWifiInterface::Station,
+                                        peer_address: r.info.src_address,
+                                        lmk: None,
+                                        channel: None,
+                                        encrypt: false,
+                                    })
+                                    .unwrap();
+                            }
+                            peer_addr = r.info.src_address;
+
+                            usb.write(r.data()).expect("write");
+
+                            break;
+                        }
+                    }
                 }
                 idx = 0;
             }

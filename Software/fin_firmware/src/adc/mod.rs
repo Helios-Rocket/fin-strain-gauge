@@ -18,7 +18,7 @@ use hal::{
 
 use crate::adc::adc_consts::registers::clock::osr::OSR;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Error {
     CRC { computed: u16 },
 }
@@ -34,7 +34,7 @@ pub struct ADC {
 
 impl ADC {
     pub fn new(tim2_reg: TIM2, spi2_reg: SPI2, clk_config: &Clocks) -> Self {
-        println!("New ADC"); 
+        println!("New ADC");
         let mut rst_pin = Pin::new(Port::B, 9, PinMode::Output);
         rst_pin.set_low(); // Make sure ADC is stopped during setup
 
@@ -62,7 +62,7 @@ impl ADC {
             0.5,
         );
         tim2.enable();
-        
+
         let clk_freq = clk_config.apb1();
         delay_ms(5, clk_freq);
 
@@ -163,20 +163,19 @@ impl ADC {
 
     // Get all adc channel values in volts for a single fin
     pub fn read_adc_data(&mut self) -> Result<[f64; 3], Error> {
-        //println!("Before"); 
+        //println!("Before");
         self.assert_cs();
-        
 
         let mut buf = [0_u8; 15];
         // let mut buf = [0b10100010, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         self.spi.transfer(&mut buf).expect("Spi Transfer Failed!");
-        //println!("Buffer {}", buf); 
+        //println!("Buffer {}", buf);
 
         self.unassert_cs();
 
         self.crc16.reset();
         self.crc16.digest(&buf);
-        //println!("After"); 
+        //println!("After");
 
         // info!("{:02x}{:02x}{:02x}", buf[0], buf[1], buf[2]);
         // info!("{:02x}{:02x}{:02x}", buf[3], buf[4], buf[5]);
@@ -185,7 +184,7 @@ impl ADC {
         // info!("{:02x}{:02x}{:02x}", buf[12], buf[13], buf[14]);
 
         let rem = self.crc16.get_crc() as u16;
-        //println!("CRC Error{}", rem); 
+        //println!("CRC Error{}", rem);
         if rem != 0 {
             Err(Error::CRC { computed: rem })
         } else {

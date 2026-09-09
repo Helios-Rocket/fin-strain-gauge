@@ -1,0 +1,12 @@
+/home/dash/projects/fin-strain-gauge/Software/frontend/target/debug/deps/libudev-c59cecac2f9f4f4d.d: /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/lib.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/context.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/device.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/enumerator.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/error.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/monitor.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/handle.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/util.rs
+
+/home/dash/projects/fin-strain-gauge/Software/frontend/target/debug/deps/liblibudev-c59cecac2f9f4f4d.rmeta: /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/lib.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/context.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/device.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/enumerator.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/error.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/monitor.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/handle.rs /home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/util.rs
+
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/lib.rs:
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/context.rs:
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/device.rs:
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/enumerator.rs:
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/error.rs:
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/monitor.rs:
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/handle.rs:
+/home/dash/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libudev-0.3.0/src/util.rs:

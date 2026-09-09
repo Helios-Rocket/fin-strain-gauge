@@ -1,5 +1,5 @@
-#[derive(defmt::Format)]
-pub enum FinStateMachine {
+#[derive(defmt::Format, Debug, Copy, Clone)]
+pub enum FinState {
     WaitForCommand,
     WaitForRecordPulse,
     SendStatus,
@@ -9,37 +9,12 @@ pub enum FinStateMachine {
     Error,
 }
 
-pub enum Event {
-    EraseCommand,
-    RecordCommand,
-    RecordPulseReceived,
-    StopCommand,
-    Success,
-    Fail,
-    Continue,
-}
-
-impl FinStateMachine {
+impl FinState {
     pub fn new(flight_flag: bool) -> Self {
         if flight_flag == true {
-            FinStateMachine::RecordData
+            FinState::RecordData
         } else {
-            FinStateMachine::WaitForCommand
-        }
-    }
-
-    pub fn next(self, event: Event) -> Self {
-        match (self, event) {
-            (Self::WaitForCommand, Event::EraseCommand) => Self::EraseFlash,
-            (Self::WaitForCommand, Event::RecordCommand) => Self::WaitForRecordPulse,
-            (Self::WaitForRecordPulse, Event::RecordPulseReceived) => Self::RecordData,
-            (Self::EraseFlash, Event::Success) => Self::WaitForCommand,
-            (Self::EraseFlash, Event::Fail) => Self::Error,
-            (Self::RecordData, Event::Fail) => Self::Error,
-            (Self::RecordData, Event::StopCommand) => Self::StopRecord,
-            (Self::StopRecord, Event::Success) => Self::WaitForCommand,
-            (Self::StopRecord, Event::Fail) => Self::Error,
-            (state, _) => state,
+            FinState::WaitForCommand
         }
     }
 }

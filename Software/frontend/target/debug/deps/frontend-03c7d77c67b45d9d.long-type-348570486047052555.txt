@@ -1,0 +1,1 @@
+Map<std::slice::Iter<'_, (&str, shared::remote_commands::Command)>, {closure@src/main.rs:26:40: 26:43}>
