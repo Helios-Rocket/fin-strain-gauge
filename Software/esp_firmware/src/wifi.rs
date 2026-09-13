@@ -6,6 +6,7 @@ use esp_radio::{
 
 pub struct Wifi<'a> {
     esp_now: EspNow<'a>,
+    last_peer_addr: Option<[u8; 6]>,
 }
 
 impl<'a> Wifi<'a> {
@@ -14,14 +15,18 @@ impl<'a> Wifi<'a> {
         info!("esp-now version {}", esp_now.version().unwrap());
         esp_now.set_channel(11).unwrap();
 
-        let this = Self { esp_now };
+        let this = Self {
+            esp_now,
+            last_peer_addr: None,
+        };
 
         this
     }
 
-    pub fn send_data(&mut self, buf: &[u8]) {
+    pub fn send_response(&mut self, buf: &[u8]) {
+        info!("Sending {:a}", buf);
         self.esp_now
-            .send(&BROADCAST_ADDRESS, buf)
+            .send(&self.last_peer_addr.unwrap_or(BROADCAST_ADDRESS), buf)
             .unwrap()
             .wait()
             .unwrap();
@@ -43,6 +48,8 @@ impl<'a> Wifi<'a> {
                         .unwrap();
                 }
             }
+
+            self.last_peer_addr = Some(r.info.src_address);
 
             let data = r.data();
             buf[0..data.len()].copy_from_slice(data);

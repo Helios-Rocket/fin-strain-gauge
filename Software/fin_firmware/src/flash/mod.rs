@@ -1,5 +1,3 @@
-use core::ptr;
-
 use cortex_m::asm::nop;
 use defmt::{info, println};
 use hal::{
@@ -11,7 +9,7 @@ use hal::{
 };
 use shared::winbond_flash::{WinbondInstruction, WinbondStatusReg};
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Error {
     FailToErase,
     FailToWrite,

@@ -35,6 +35,8 @@
             pkgs.espflash
             pkgs.esp-generate
             pkgs.tio
+            pkgs.pkg-config
+            pkgs.libudev-zero
           ];
           shellHook = ''
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"

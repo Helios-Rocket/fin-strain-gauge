@@ -2,17 +2,21 @@
 #![no_main]
 
 use adc::ADC;
-use cortex_m::delay;
+use core::slice;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
+use cortex_m::delay;
 use defmt::{error, info, println};
 use flash::WinbondFlash;
+use hal::flash::Bank;
 use hal::pac::USART3;
 use hal::pac::i2c1::cr2::HEAD10R;
 use hal::timer::TimerConfig;
 use hal::usart::UsartConfig;
 use hal::usart::UsartInterrupt;
-use hal::{access_global, gpio, init_globals, make_globals, make_simple_globals, setup_nvic, BaudPeriph};
+use hal::{
+    BaudPeriph, access_global, gpio, init_globals, make_globals, make_simple_globals, setup_nvic,
+};
 use hal::{
     clocks::Clocks,
     delay_ms,
@@ -25,8 +29,7 @@ use hal::{
 };
 use handlers::StateHandler;
 use shared::winbond_flash;
-use statemachine::Event;
-use statemachine::FinStateMachine;
+use statemachine::FinState;
 
 use defmt_rtt as _;
 use panic_probe as _;
@@ -45,16 +48,14 @@ pub static PULSE_READY: AtomicBool = AtomicBool::new(false);
 // Filled in one byte at a time by the USART3 RXNE interrupt. `RX_LEN` is how many
 // bytes have landed since the last Idle-line event; the Idle interrupt snapshots
 // and resets it, so a frame is only considered valid (and COMMAND_READY set) if
-// exactly 4 bytes showed up between idle periods. This decouples byte reception
-// from the (slow, blocking) command handler, so a gap between bytes on the wire
-// no longer desyncs or corrupts the buffer.
-make_simple_globals!((RX_BUF, [u8; 4], [0u8; 4]), (RX_LEN, usize, 0));
+// exactly 4 bytes showed up between idle periods.
+make_simple_globals!(
+    (RX_BUF, [u8; 4], [0u8; 4]),
+    (RX_LEN, usize, 0),
+    (ADC_ERROR, Option<adc::Error>, None),
+);
 
-make_globals!((UART, Usart<USART3>), 
-              (ADC_CRC_ERROR, (u32, bool)), 
-              (ADC_SPI_READ_ERROR, (u32, bool)), 
-              (ADC_SPI_WRITE_ERROR, (u32, bool)),
-              (WINBOND_ERROR, (u32, bool)));
+make_globals!((UART, Usart<USART3>),);
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
@@ -85,9 +86,6 @@ unsafe fn main() -> ! {
     let mut pb11 = Pin::new(Port::B, 11, PinMode::Alt(7));
     let usart3 = Usart::new(dp.USART3, 1800, UsartConfig::default(), &clock_cfg)
         .expect("Failed to initialize");
-    let uart_regs = unsafe{USART3::steal()}; 
-    println!("fclk/baud: {}", (USART3::baud(&clock_cfg)/1200) as u16); 
-    println!("Baud: {}", uart_regs.brr().read().bits()); 
 
     init_globals!((UART, usart3));
 
@@ -95,29 +93,34 @@ unsafe fn main() -> ! {
     // Enable interrupt
     critical_section::with(|cs| {
         access_global!(UART, uart, cs);
-        uart.enable_interrupt(UsartInterrupt::Idle);
-        uart.enable_interrupt(UsartInterrupt::ReadNotEmpty);
+        uart.enable_interrupt(UsartInterrupt::Idle)
+            .expect("enable uart idle interrupt");
+        uart.enable_interrupt(UsartInterrupt::ReadNotEmpty)
+            .expect("enable uart read not empty interrupt");
     });
 
     let internal_flash = Flash::new(dp.FLASH);
-    let mut buf: [u8; 1] = [0u8; 1];
-    internal_flash.read(hal::flash::Bank::B1, 31, 0, &mut buf);
-    println!("Internal flash buffer: {}", buf);
-    let flight_flag_byte = buf[0];
-    let flight_flag = false; //flight_flag_byte == 1;
+    let mut flight_flag = false;
+    internal_flash.read(
+        Bank::B1,
+        31,
+        0,
+        slice::from_mut(unsafe { core::mem::transmute(&mut flight_flag) }),
+    );
 
-    println!("Flight Flag detected as: {}", flight_flag);
-
-    let timer_config = TimerConfig{update_request_source: hal::timer::UpdateReqSrc::OverUnderFlow, ..Default::default()}; 
+    let timer_config = TimerConfig {
+        update_request_source: hal::timer::UpdateReqSrc::OverUnderFlow,
+        ..Default::default()
+    };
 
     let mut timer = Timer::new_tim1(dp.TIM1, 1000 as f32, timer_config, &clock_cfg);
     timer.enable_interrupt(hal::timer::TimerInterrupt::Update);
     timer.enable();
-    println!("Enabled?: {}", timer.is_enabled()); 
+    println!("Enabled?: {}", timer.is_enabled());
     let timer_start = timer.now();
-    println!("Timer Start: {}", timer_start.as_nanos()); 
+    println!("Timer Start: {}", timer_start.as_nanos());
 
-    let mut state = FinStateMachine::new(flight_flag);
+    let mut state = FinState::new(flight_flag);
     let mut handler = StateHandler::new(
         adc,
         flash,
@@ -141,19 +144,18 @@ unsafe fn main() -> ! {
     println!("Starting Flight routine");
 
     loop {
-
         // while !uart_regs.isr().read().rxne().bit_is_set(){}
 
-        // println!("UART isr reading: {:b}", uart_regs.isr().read().bits()); 
-        
-        // println!("UART Reading: {:x}", uart_regs.rdr().read().rdr().bits()); 
+        // println!("UART isr reading: {:b}", uart_regs.isr().read().bits());
 
-        // println!("UART isr reading: {:b}", uart_regs.isr().read().bits()); 
+        // println!("UART Reading: {:x}", uart_regs.rdr().read().rdr().bits());
+
+        // println!("UART isr reading: {:b}", uart_regs.isr().read().bits());
 
         // critical_section::with(|cs| {
         //     access_global!(UART, uart, cs);
-        //     uart.write(b"A").unwrap(); 
-        //     println!("Sending UART Msg"); 
+        //     uart.write(b"A").unwrap();
+        //     println!("Sending UART Msg");
         // });
         // delay_ms(2000, ahb_freq);
 
@@ -170,18 +172,18 @@ unsafe fn main() -> ! {
         // Flight routine
 
         info!("about to handle event");
-        let event = match state {
-            FinStateMachine::WaitForCommand => handler.handle_wait_for_command(),
-            FinStateMachine::WaitForRecordPulse => handler.handle_wait_for_pulse(),
-            FinStateMachine::RecordData => handler.handle_record_data(),
-            FinStateMachine::StopRecord => handler.handle_stop_recording(),
-            FinStateMachine::EraseFlash => handler.handle_erase_flash(),
-            FinStateMachine::Error => handler.handle_error(),
+        let next_state = match state {
+            FinState::WaitForCommand => handler.handle_wait_for_command(),
+            FinState::WaitForRecordPulse => handler.handle_wait_for_pulse(),
+            FinState::RecordData => handler.handle_record_data(),
+            FinState::StopRecord => handler.handle_stop_recording(),
+            FinState::EraseFlash => handler.handle_erase_flash(),
+            FinState::Error => handler.handle_error(),
+            FinState::SendStatus => handler.handle_status_cmd(),
         };
-
-        state = state.next(event);
-
-
+        if let Some(next_state) = next_state {
+            state = next_state;
+        }
     }
 }
 
@@ -195,17 +197,18 @@ fn EXTI15_10() {
 fn USART3() {
     critical_section::with(|cs| {
         access_global!(UART, uart, cs);
+        let status = uart.regs.isr().read();
 
         // An overrun blocks further reception until cleared; clear it unconditionally
         // so a missed byte doesn't wedge the line permanently.
-        if uart.check_status_flag(UsartInterrupt::Overrun) {
+        if status.ore().is_overrun() {
             uart.clear_interrupt(UsartInterrupt::Overrun);
         }
 
         // Pull in a byte as soon as it lands, independent of Idle. This is what lets
         // a command survive being sent with gaps between bytes: each byte is captured
         // the moment it arrives instead of being blocking-read after the fact.
-        if uart.check_status_flag(UsartInterrupt::ReadNotEmpty) {
+        if status.rxne().is_data_ready() {
             let byte = uart.read_one();
             let len = RX_LEN.borrow(cs).get();
             if len < 4 {
@@ -220,7 +223,7 @@ fn USART3() {
         // last Idle and reset the counter. Only signal a command if we actually got
         // a full 4-byte frame; a short/garbage frame (e.g. a spurious early Idle) is
         // silently dropped instead of being handed to the handler as-is.
-        if uart.check_status_flag(UsartInterrupt::Idle) {
+        if status.idle().is_idle() {
             uart.clear_interrupt(UsartInterrupt::Idle);
             let len = RX_LEN.borrow(cs).get();
             RX_LEN.borrow(cs).set(0);
@@ -232,13 +235,13 @@ fn USART3() {
     println!("wah");
 }
 
+// This is the TIM16 and TIM1 interrupt (we are using TIM1), the pac just calls it TIM16 for some reason
 #[interrupt]
-fn TIM16() {  // use whatever name matched above
+fn TIM16() {
     unsafe {
         let regs = &(*pac::TIM1::ptr());
         regs.sr().write(|w| w.bits(0xffff_ffff).uif().clear_bit());
     }
-    
+
     timer::TICK_OVERFLOW_COUNT.fetch_add(1, Ordering::Relaxed);
 }
-//Stop recording rising, start recording falling
