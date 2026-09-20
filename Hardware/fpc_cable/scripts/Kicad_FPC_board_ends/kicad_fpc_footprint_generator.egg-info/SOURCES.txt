@@ -1,0 +1,12 @@
+LICENSE
+README.md
+pyproject.toml
+setup.py
+kicad_fpc_footprint_generator/__init__.py
+kicad_fpc_footprint_generator/cli.py
+kicad_fpc_footprint_generator/fpc_footprint.py
+kicad_fpc_footprint_generator.egg-info/PKG-INFO
+kicad_fpc_footprint_generator.egg-info/SOURCES.txt
+kicad_fpc_footprint_generator.egg-info/dependency_links.txt
+kicad_fpc_footprint_generator.egg-info/entry_points.txt
+kicad_fpc_footprint_generator.egg-info/top_level.txt
