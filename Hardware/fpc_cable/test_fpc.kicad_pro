@@ -298,11 +298,14 @@
   },
   "pcbnew": {
     "last_paths": {
+      "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "gerbers/",
+      "plot": "../gerbers/",
+      "pos_files": "",
       "specctra_dsn": "",
       "step": "",
+      "svg": "",
       "vrml": ""
     },
     "page_layout_descr_file": ""
@@ -311,7 +314,13 @@
     "bus_aliases": {},
     "legacy_lib_dir": "",
     "legacy_lib_list": [],
-    "top_level_sheets": []
+    "top_level_sheets": [
+      {
+        "filename": "test_fpc.kicad_sch",
+        "name": "test_fpc",
+        "uuid": "00000000-0000-0000-0000-000000000000"
+      }
+    ]
   },
   "sheets": [],
   "text_variables": {},
