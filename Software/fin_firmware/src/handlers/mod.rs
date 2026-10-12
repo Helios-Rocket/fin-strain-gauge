@@ -140,7 +140,9 @@ impl StateHandler {
         //println!("Entered Record Data Handler");
 
         if PULSE_READY.swap(false, Ordering::AcqRel) {
-            return Some(FinState::StopRecord);
+            if self.pb11.is_high() {
+                return Some(FinState::StopRecord);
+            }
         }
 
         match self.adc.read_adc_data() {
