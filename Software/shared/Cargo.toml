@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 num_enum = { version = "0.7.6", default-features = false }
+postcard = { version = "1.1", features = ["embedded-io-06"]}
+serde = { version = "1.0", default-features = false }
+

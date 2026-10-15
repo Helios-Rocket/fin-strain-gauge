@@ -6,7 +6,6 @@ pub enum FinState {
     RecordData,
     StopRecord,
     EraseFlash,
-    Error,
 }
 
 impl FinState {

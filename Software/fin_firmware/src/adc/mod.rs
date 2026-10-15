@@ -4,7 +4,7 @@ use crc_any::CRC;
 mod adc_consts;
 
 use adc_consts::*;
-
+use serde::{Serialize, Deserialize};
 pub use adc_consts::{AdcChannel, registers::gain::Gain};
 use defmt::{info, println};
 use hal::{
@@ -17,11 +17,8 @@ use hal::{
 };
 
 use crate::adc::adc_consts::registers::clock::osr::OSR;
+use shared::errors::AdcError; 
 
-#[derive(Debug, Copy, Clone)]
-pub enum Error {
-    CRC { computed: u16 },
-}
 pub struct ADC {
     spi: Spi<SPI2>,
     pwm: Timer<TIM2>,
@@ -162,7 +159,7 @@ impl ADC {
     }
 
     // Get all adc channel values in volts for a single fin
-    pub fn read_adc_data(&mut self) -> Result<[f64; 3], Error> {
+    pub fn read_adc_data(&mut self) -> Result<[f64; 3], AdcError> {
         //println!("Before");
         self.assert_cs();
 
@@ -186,7 +183,7 @@ impl ADC {
         let rem = self.crc16.get_crc() as u16;
         //println!("CRC Error{}", rem);
         if rem != 0 {
-            Err(Error::CRC { computed: rem })
+            Err(AdcError::CRC { computed: rem })
         } else {
             Ok([
                 convert_adc2volts(

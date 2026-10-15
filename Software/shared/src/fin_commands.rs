@@ -8,4 +8,5 @@ pub enum FinCommands {
     RecordData,
     StopRecord,
     EraseFlash,
+    SendStatus,
 }

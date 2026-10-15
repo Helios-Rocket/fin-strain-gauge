@@ -49,10 +49,14 @@ pub static PULSE_READY: AtomicBool = AtomicBool::new(false);
 // bytes have landed since the last Idle-line event; the Idle interrupt snapshots
 // and resets it, so a frame is only considered valid (and COMMAND_READY set) if
 // exactly 4 bytes showed up between idle periods.
+
 make_simple_globals!(
     (RX_BUF, [u8; 4], [0u8; 4]),
     (RX_LEN, usize, 0),
-    (ADC_ERROR, Option<adc::Error>, None),
+    (LAST_ADC_ERROR, Option<adc::AdcError>, None),
+    (ADC_ERROR_COUNT, i64, 0),
+    (LAST_WINBOND_ERROR, Option<flash::WinbondFlashError>, None),
+    (WINBOND_ERROR_COUNT, i64, 0),
 );
 
 make_globals!((UART, Usart<USART3>),);
@@ -171,14 +175,13 @@ unsafe fn main() -> ! {
 
         // Flight routine
 
-        info!("about to handle event");
+        info!("About to handle event");
         let next_state = match state {
             FinState::WaitForCommand => handler.handle_wait_for_command(),
             FinState::WaitForRecordPulse => handler.handle_wait_for_pulse(),
             FinState::RecordData => handler.handle_record_data(),
             FinState::StopRecord => handler.handle_stop_recording(),
             FinState::EraseFlash => handler.handle_erase_flash(),
-            FinState::Error => handler.handle_error(),
             FinState::SendStatus => handler.handle_status_cmd(),
         };
         if let Some(next_state) = next_state {

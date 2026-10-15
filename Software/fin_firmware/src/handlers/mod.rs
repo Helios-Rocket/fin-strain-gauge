@@ -4,10 +4,10 @@ use hal::access_global;
 use hal::instant::Instant;
 use hal::pac::TIM1;
 
-use crate::adc::{self, ADC};
-use crate::flash::{self, WinbondFlash};
+use crate::adc::{self, ADC, AdcError};
+use crate::flash::{self, WinbondFlash, WinbondFlashError};
 use crate::statemachine::FinState;
-use crate::{COMMAND_READY, PULSE_READY, RX_BUF, RX_LEN, UART};
+use crate::{ADC_ERROR_COUNT, COMMAND_READY, LAST_ADC_ERROR, LAST_WINBOND_ERROR, PULSE_READY, RX_BUF, RX_LEN, UART, WINBOND_ERROR_COUNT};
 use hal::{
     flash::{Bank, Flash},
     gpio::{Edge, Pin, PinMode},
@@ -15,6 +15,10 @@ use hal::{
     usart::UsartInterrupt,
 };
 use shared::fin_commands::FinCommands;
+use shared::errors::{WinbondFlashError, AdcError, FinStatus}
+use core::ops::Deref;
+use serde::{Serialize, Deserialize};
+use postcard::{from_bytes, to_eio};
 
 pub struct StateHandler {
     adc: ADC,
@@ -74,7 +78,7 @@ impl StateHandler {
         let _ = self
             .internal_flash
             .erase_write_page(Bank::B1, 31, &flash_data)
-            .inspect_err(|e| error!("Failed to write to internal flash: {}", e));
+            .inspect_err(|e| error!("Failed to write to internal flash: {}", e)); // TODO: Error handling? 
         let _ = self.internal_flash.lock();
     }
 
@@ -105,6 +109,7 @@ impl StateHandler {
             match FinCommands::try_from(command[3]).unwrap() {
                 FinCommands::RecordData => Some(FinState::WaitForRecordPulse),
                 FinCommands::EraseFlash => Some(FinState::EraseFlash),
+                FinCommands::SendStatus => Some(FinState::SendStatus), 
                 _ => None,
             }
         } else {
@@ -138,7 +143,7 @@ impl StateHandler {
 
     pub fn handle_record_data(&mut self) -> Option<FinState> {
         //println!("Entered Record Data Handler");
-
+        //TODO: Does this if statement need to be here if wait for pulse sets the interrupt for rising edge? 
         if PULSE_READY.swap(false, Ordering::AcqRel) {
             if self.pb11.is_high() {
                 return Some(FinState::StopRecord);
@@ -165,24 +170,43 @@ impl StateHandler {
 
                     if self.record_idx == self.record_buf.len() {
                         println!("Writing to Flash");
-                        self.winbond_flash.write_page(self.record_buf); // Have this return an error
-                        self.record_idx = 0;
-                        self.page += 1;
-                        // critical_section::with(|cs| {
-                        //     access_global!(UART, uart, cs);
-                        //     uart.write(&[1]).ok();
-                        // });
-                        println!("Wrote to Flash");
-                        self.persist_status(true);
+                        match self.winbond_flash.write_page(self.record_buf){
+                            Ok(()) => {
+                                self.record_idx = 0;
+                                self.page += 1;
+                                // critical_section::with(|cs| {
+                                //     access_global!(UART, uart, cs);
+                                //     uart.write(&[1]).ok();
+                                // });
+                                println!("Wrote to Flash");
+                                self.persist_status(true);
+                                self.pb10.toggle(); 
+                            }
+
+                            Err(e) => {
+                                critical_section::with(|cs|{
+                                    let count= ADC_ERROR_COUNT.borrow(cs).get(); 
+                                    WINBOND_ERROR_COUNT.borrow(cs).set(count + 1); 
+                                    LAST_WINBOND_ERROR.borrow(cs).set(Some(e))
+                                }); 
+                            }
+
+                        } // TODO: Have this return a write error if failure
+                       
                     }
                 }
                 None
             }
 
-            Err(adc::Error::CRC { computed }) => {
-                // TODO: Don't go to error state
-                error!("Got CRC Error {}", computed);
-                Some(FinState::Error)
+            Err(e) => {
+
+                critical_section::with(|cs|{
+                    let count= ADC_ERROR_COUNT.borrow(cs).get(); 
+                    ADC_ERROR_COUNT.borrow(cs).set(count + 1); 
+                    LAST_ADC_ERROR.borrow(cs).set(Some(e))
+
+                }); 
+                None
             }
         }
     }
@@ -217,8 +241,8 @@ impl StateHandler {
                     error!("Failed to erase");
 
                     let err_str = match e {
-                        flash::Error::FailToErase => b"Erase failed",
-                        flash::Error::FailToWrite => b"Write failed",
+                        flash::WinbondFlashError::FailToErase => b"Erase failed",
+                        flash::WinbondFlashError::FailToWrite => b"Write failed",
                     };
 
                     let _ = uart.write(b"FIN");
@@ -233,17 +257,20 @@ impl StateHandler {
     }
 
     pub fn handle_status_cmd(&mut self) -> Option<FinState> {
+
         critical_section::with(|cs| {
+            let adc_count = ADC_ERROR_COUNT.borrow(cs).get(); 
+            let last_adc = LAST_ADC_ERROR.borrow(cs).get(); 
+            let winbond_count = WINBOND_ERROR_COUNT.borrow(cs).get(); 
+            let last_winbond = LAST_WINBOND_ERROR.borrow(cs).get(); 
+            let status = FinStatus::new(adc_count, last_adc, winbond_count, last_winbond); 
+
             access_global!(UART, uart, cs);
-            uart.write(b"A").unwrap();
-            println!("Sending UART Msg");
+            uart.write(b"FIN").unwrap();
+            to_eio(&status, uart); 
+        
         });
         Some(FinState::WaitForCommand)
     }
 
-    pub fn handle_error(&mut self) -> Option<FinState> {
-        // Send error signal over uart
-        println!("Error State Entered");
-        None
-    }
 }

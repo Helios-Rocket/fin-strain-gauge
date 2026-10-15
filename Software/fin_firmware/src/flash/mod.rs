@@ -8,12 +8,7 @@ use hal::{
     qspi::Qspi,
 };
 use shared::winbond_flash::{WinbondInstruction, WinbondStatusReg};
-
-#[derive(Debug, Copy, Clone)]
-pub enum Error {
-    FailToErase,
-    FailToWrite,
-}
+use shared::errors::WinbondFlashError; 
 
 pub const BYTES_PER_PAGE: u32 = 2048;
 pub const PAGES_PER_BLOCK: u32 = 64;
@@ -227,7 +222,7 @@ impl WinbondFlash {
         word
     }
 
-    pub fn write_page(&mut self, data: [u32; 512]) {
+    pub fn write_page(&mut self, data: [u32; 512]) -> Result<(), WinbondFlashError>{
         // Write Enable command
         self.regs.fcr().write(|w| w.ctcf().clear());
         self.regs.ccr().write(|w| {
@@ -297,9 +292,13 @@ impl WinbondFlash {
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
 
-        println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
-
-        self.page_count += 1;
+        if self.read_status_register(WinbondStatusReg::Three).to_le_bytes()[3] == 1{ //TODO: Check right bit
+            self.page_count += 1;
+            Ok(())
+        }
+        else{
+            Err(WinbondFlashError::FailToWrite)
+        }
     }
 
     pub fn read_page(&mut self, addr: u16) {
@@ -365,8 +364,9 @@ impl WinbondFlash {
         println!("{:x}", data);
     }
 
-    pub fn erase_chip(&mut self) -> Result<(), Error> {
+    pub fn erase_chip(&mut self) -> Result<(), WinbondFlashError> {
         // Write Enable command
+        // TODO: Add in error handling 
         self.regs.fcr().write(|w| w.ctcf().clear());
         self.regs.ccr().write(|w| {
             w.fmode()
@@ -402,8 +402,16 @@ impl WinbondFlash {
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(500, self.clk_freq);
-        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
+        
+        // TODO: Does this break things? while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
-        Ok(())
+        if self.read_status_register(WinbondStatusReg::Three).to_le_bytes()[2] == 1{ //TODO: Check right bit
+            self.page_count += 1;
+            Ok(())
+        }
+        else{
+            Err(WinbondFlashError::FailToErase)
+        }
+        
     }
 }
