@@ -29,6 +29,7 @@ use hal::{
 };
 use handlers::StateHandler;
 use shared::winbond_flash;
+use shared::errors::{AdcError, WinbondFlashError}; 
 use statemachine::FinState;
 
 use defmt_rtt as _;
@@ -53,10 +54,10 @@ pub static PULSE_READY: AtomicBool = AtomicBool::new(false);
 make_simple_globals!(
     (RX_BUF, [u8; 4], [0u8; 4]),
     (RX_LEN, usize, 0),
-    (LAST_ADC_ERROR, Option<adc::AdcError>, None),
-    (ADC_ERROR_COUNT, i64, 0),
-    (LAST_WINBOND_ERROR, Option<flash::WinbondFlashError>, None),
-    (WINBOND_ERROR_COUNT, i64, 0),
+    (LAST_ADC_ERROR, Option<AdcError>, None),
+    (ADC_ERROR_COUNT, u16, 0),
+    (LAST_WINBOND_ERROR, Option<WinbondFlashError>, None),
+    (WINBOND_ERROR_COUNT, u16, 0),
 );
 
 make_globals!((UART, Usart<USART3>),);

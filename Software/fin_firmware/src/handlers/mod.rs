@@ -4,8 +4,8 @@ use hal::access_global;
 use hal::instant::Instant;
 use hal::pac::TIM1;
 
-use crate::adc::{self, ADC, AdcError};
-use crate::flash::{self, WinbondFlash, WinbondFlashError};
+use crate::adc::{self, ADC};
+use crate::flash::{self, WinbondFlash};
 use crate::statemachine::FinState;
 use crate::{ADC_ERROR_COUNT, COMMAND_READY, LAST_ADC_ERROR, LAST_WINBOND_ERROR, PULSE_READY, RX_BUF, RX_LEN, UART, WINBOND_ERROR_COUNT};
 use hal::{
@@ -15,7 +15,7 @@ use hal::{
     usart::UsartInterrupt,
 };
 use shared::fin_commands::FinCommands;
-use shared::errors::{WinbondFlashError, AdcError, FinStatus}
+use shared::errors::{WinbondFlashError, AdcError, FinStatus}; 
 use core::ops::Deref;
 use serde::{Serialize, Deserialize};
 use postcard::{from_bytes, to_eio};
@@ -241,8 +241,8 @@ impl StateHandler {
                     error!("Failed to erase");
 
                     let err_str = match e {
-                        flash::WinbondFlashError::FailToErase => b"Erase failed",
-                        flash::WinbondFlashError::FailToWrite => b"Write failed",
+                        WinbondFlashError::FailToErase => b"Erase failed",
+                        WinbondFlashError::FailToWrite => b"Write failed",
                     };
 
                     let _ = uart.write(b"FIN");
@@ -263,11 +263,11 @@ impl StateHandler {
             let last_adc = LAST_ADC_ERROR.borrow(cs).get(); 
             let winbond_count = WINBOND_ERROR_COUNT.borrow(cs).get(); 
             let last_winbond = LAST_WINBOND_ERROR.borrow(cs).get(); 
-            let status = FinStatus::new(adc_count, last_adc, winbond_count, last_winbond); 
+            let status = FinStatus{adc_count, last_adc, winbond_count, last_winbond}; 
 
             access_global!(UART, uart, cs);
             uart.write(b"FIN").unwrap();
-            to_eio(&status, uart); 
+            to_eio(&status, uart).unwrap(); 
         
         });
         Some(FinState::WaitForCommand)

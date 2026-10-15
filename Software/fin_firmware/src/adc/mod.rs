@@ -12,9 +12,10 @@ use hal::{
     delay_ms, delay_us,
     gpio::{Pin, PinMode, Port},
     pac::{self, SPI2, TIM2},
-    spi::{Spi, SpiMode},
+    spi::{Spi},
     timer::{Timer, TimerConfig},
 };
+use embedded_hal::spi::{MODE_1}; 
 
 use crate::adc::adc_consts::registers::clock::osr::OSR;
 use shared::errors::AdcError; 
@@ -43,7 +44,7 @@ impl ADC {
         let _mosi = Pin::new(Port::B, 15, PinMode::Alt(5));
 
         let spi_config = hal::spi::SpiConfig {
-            mode: SpiMode::mode1(),
+            mode: MODE_1,
             ..Default::default()
         };
 

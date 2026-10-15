@@ -192,6 +192,7 @@ dependencies = [
  "critical-section",
  "defmt",
  "defmt-rtt",
+ "embedded-hal 1.0.0",
  "panic-probe",
  "postcard",
  "serde",
@@ -307,7 +308,19 @@ dependencies = [
  "cobs",
  "embedded-io",
  "heapless",
+ "postcard-derive",
  "serde",
+]
+
+[[package]]
+name = "postcard-derive"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0232bd009a197ceec9cc881ba46f727fcd8060a2d8d6a9dde7a69030a6fe2bb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]

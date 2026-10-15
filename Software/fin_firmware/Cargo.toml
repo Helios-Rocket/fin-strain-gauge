@@ -15,6 +15,7 @@ panic-probe = "1.0.0"
 shared = { path = "../shared" }
 postcard = { version = "1.1", features = ["embedded-io-06"]}
 serde = { version = "1.0", default-features = false }
+embedded-hal = {version = "1.0.0"}
 
 [profile.dev]
 codegen-units = 1
