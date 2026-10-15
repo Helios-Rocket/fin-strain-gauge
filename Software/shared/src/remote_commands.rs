@@ -10,13 +10,15 @@ pub enum Command {
     StopLiveVideo,
     ArmFins,
     DisarmFins,
+    FinStatus,
 }
 
 pub static REMOTE_HEADER: &[u8] = b"HELIOS_REMOTE_CMD";
 
-pub static COMMANDS: [(&str, Command); 7] = [
+pub static COMMANDS: [(&str, Command); 8] = [
     ("fin erase", Command::EraseFinFlashes),
     ("fin arm", Command::ArmFins),
+    ("fin status", Command::FinStatus),
     ("fin disarm", Command::DisarmFins),
     ("altimeter arm", Command::ArmAltimeter),
     ("altimeter disarm", Command::DisarmAltimeter),
