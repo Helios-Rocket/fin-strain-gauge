@@ -2,6 +2,7 @@
 pub mod fin_driver;
 pub mod logging;
 pub mod lsm;
+pub mod mpl;
 pub mod sd;
 pub mod wifi;
 

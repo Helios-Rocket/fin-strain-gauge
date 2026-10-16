@@ -52,6 +52,7 @@ fn main() -> ! {
     let (mut fin_controller, fins_idle) = Fins::new(
         p.UART1,
         p.GPIO_DEDICATED,
+        p.PCNT,
         p.GPIO4.degrade(),
         p.GPIO5.degrade(),
         p.GPIO6.degrade(),
@@ -109,6 +110,8 @@ fn main() -> ! {
     let fs = FS.init(None);
     let log_file;
     let mut lsm_log_file = None;
+    let mut baro_log_file = None;
+    let mut pcnt_log_file = None;
     let mut logger = Logger::default();
 
     if has_sd {
@@ -133,6 +136,14 @@ fn main() -> ! {
         lsm_log_file = root_dir
             .create_file("lsm_data.csv")
             .inspect_err(|_e| logger.warn(format_args!("Unable to create or open lsm_data.csv")))
+            .ok();
+        baro_log_file = root_dir
+            .create_file("baro_data.csv")
+            .inspect_err(|_e| logger.warn(format_args!("Unable to create or open baro_data.csv")))
+            .ok();
+        pcnt_log_file = root_dir
+            .create_file("pulses.csv")
+            .inspect_err(|_e| logger.warn(format_args!("Unable to create or open pulses.csv")))
             .ok();
     }
 
@@ -182,6 +193,17 @@ fn main() -> ! {
                                 "Ok"
                             } else {
                                 "Not stopping fins: must be started first"
+                            }
+                        }
+                        Command::FinStatus => {
+                            if let Some(idle) = fins_idle.as_ref() {
+                                &format!(
+                                    "{} {:?}",
+                                    fin_controller.get_blocks_written(0),
+                                    fin_controller.get_fin_status(idle)
+                                )
+                            } else {
+                                "Not querying fins: must be idle (stopped) first"
                             }
                         }
                         _ => "Unimplemented",

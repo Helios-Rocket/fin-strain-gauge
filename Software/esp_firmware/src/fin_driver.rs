@@ -1,17 +1,24 @@
 use defmt::{error, info};
+use embedded_io::Read;
 use esp_hal::{
     delay::Delay,
     gpio::{
         dedicated::{DedicatedGpio, DedicatedGpioOutput, DedicatedGpioOutputChannel},
-        AnyPin, Level, NoPin, Output, OutputConfig,
+        AnyPin, Input, InputConfig, Level, NoPin, Output, OutputConfig,
     },
-    peripherals::GPIO_DEDICATED,
+    pcnt::{
+        channel::{CtrlMode, EdgeMode},
+        Pcnt,
+    },
+    peripherals::{GPIO_DEDICATED, PCNT},
     time::{Duration, Instant},
     uart::{self, RxError, TxError, Uart},
     Blocking,
 };
 use num_enum::TryFromPrimitiveError;
 use shared::fin_commands::FinCommands;
+
+const NUM_FINS: usize = 1;
 
 pub struct FinsIdle(());
 pub struct FinsStarted(());
@@ -54,6 +61,8 @@ pub struct Fins<'d> {
 
     uart: Option<Uart<'d, Blocking>>,
 
+    pcnt: Pcnt<'d>,
+
     delay: Delay,
 
     _dgpio_chans: DedicatedGpio<'d>,
@@ -64,6 +73,7 @@ impl<'d> Fins<'d> {
     pub fn new(
         uart: impl uart::Instance + 'd,
         dgpio: GPIO_DEDICATED<'d>,
+        pcnt: PCNT<'d>,
         fin0_rx: AnyPin<'d>,
         fin0_tx: AnyPin<'d>,
         fin1_rx: AnyPin<'d>,
@@ -104,6 +114,8 @@ impl<'d> Fins<'d> {
                 .ok_or(FinCommsError::NoUart)?,
             ),
 
+            pcnt: Pcnt::new(pcnt),
+
             delay: Delay::new(),
 
             _dgpio_chans: DedicatedGpio::new(dgpio),
@@ -111,6 +123,24 @@ impl<'d> Fins<'d> {
         };
 
         this.enable_synced();
+
+        let pcnt = unsafe { PCNT::steal() };
+        let pcnt_regs = pcnt.register_block();
+        for unit in 0..4 {
+            let conf0 = pcnt_regs.unit(unit).conf0();
+
+            conf0.modify(|_, w| {
+                w.ch0_lctrl_mode()
+                    .variant(CtrlMode::Disable)
+                    .ch0_hctrl_mode()
+                    .variant(CtrlMode::Keep)
+                    .ch0_neg_mode()
+                    .variant(EdgeMode::Increment)
+                    .ch0_pos_mode()
+                    .variant(EdgeMode::Increment)
+            });
+        }
+        this.set_pcnt_ctrls(Level::Low);
 
         Ok((this, FinsIdle(())))
     }
@@ -127,6 +157,7 @@ impl<'d> Fins<'d> {
         self.uart = Some(u);
         // NOTE: this disconnects the pins from the dedicated gpio peripheral and disables the corresponding output drivers
         self.synced_output = None;
+        self.set_pcnt_ctrls(Level::Low);
 
         let u = self
             .uart
@@ -137,6 +168,13 @@ impl<'d> Fins<'d> {
         self.uart = Some(u);
     }
 
+    fn set_pcnt_ctrls(&mut self, level: Level) {
+        self.pcnt.unit0.channel0.set_ctrl_signal(level);
+        self.pcnt.unit1.channel0.set_ctrl_signal(level);
+        self.pcnt.unit2.channel0.set_ctrl_signal(level);
+        self.pcnt.unit3.channel0.set_ctrl_signal(level);
+    }
+
     fn enable_synced(&mut self) -> FinsStarted {
         // Drops any pin peripherals used for uart.
         let u = self.uart.take().unwrap().with_rx(NoPin).with_tx(NoPin);
@@ -144,13 +182,18 @@ impl<'d> Fins<'d> {
         // NOTE: this disconnects the pins from the dedicated gpio peripheral and disables the corresponding output drivers
         self.synced_output = None;
 
-        let [p0, p1, p2, p3] = self.raw_pins.each_mut().map(|p| {
-            Output::new(
-                unsafe { p.tx.clone_unchecked() }, // SAFETY: The top of this function drops the two things that could be using the pin peripherals
-                Level::High,
-                OutputConfig::default().with_drive_strength(esp_hal::gpio::DriveStrength::_40mA),
-            )
-        });
+        let [(out0, in0), (out1, in1), (out2, in2), (out3, in3)] =
+            self.raw_pins.each_mut().map(|p| {
+                (
+                    Output::new(
+                        unsafe { p.tx.clone_unchecked() }, // SAFETY: The top of this function drops the two things that could be using the pin peripherals
+                        Level::High,
+                        OutputConfig::default()
+                            .with_drive_strength(esp_hal::gpio::DriveStrength::_40mA),
+                    ),
+                    Input::new(unsafe { p.rx.clone_unchecked() }, InputConfig::default()),
+                )
+            });
 
         // SAFETY: the DedicatedGpio peripheral has been setup, and we own it, so nothing else should be using this (or any) channel
         let mut dedicated_output =
@@ -158,11 +201,18 @@ impl<'d> Fins<'d> {
         dedicated_output.set_level(Level::High); // Since UART is idle High, we will use a falling edge to trigger the synced start, and thus we should ensure the pins stay high when attached to dedicated gpio
         self.synced_output = Some(
             dedicated_output
-                .with_pin(p0)
-                .with_pin(p1)
-                .with_pin(p2)
-                .with_pin(p3),
+                .with_pin(out0)
+                .with_pin(out1)
+                .with_pin(out2)
+                .with_pin(out3),
         );
+
+        self.pcnt.unit0.channel0.set_edge_signal(in0);
+        self.pcnt.unit1.channel0.set_edge_signal(in1);
+        self.pcnt.unit2.channel0.set_edge_signal(in2);
+        self.pcnt.unit3.channel0.set_edge_signal(in3);
+
+        self.set_pcnt_ctrls(Level::High);
 
         FinsStarted(())
     }
@@ -172,6 +222,7 @@ impl<'d> Fins<'d> {
         let uart = self.uart.as_mut().unwrap();
         uart.write(b"FIN")?;
         uart.write(&[cmd as u8])?;
+        uart.write(&[0xff])?;
         uart.flush()?;
 
         let send_time = Instant::now();
@@ -192,9 +243,9 @@ impl<'d> Fins<'d> {
         if &resp[0..3] == b"FIN" {
             if FinCommands::try_from(resp[3])? == FinCommands::Failure {
                 loop {
-                    if let Ok(n) = uart.read_buffered(&mut resp) {
+                    if let Ok(n) = uart.read_buffered(&mut resp[i..]) {
                         i += n;
-                        if resp[i - 1] == b'.' {
+                        if resp[i - 1] == 0xff {
                             break;
                         }
                     }
@@ -215,11 +266,14 @@ impl<'d> Fins<'d> {
         Ok(())
     }
 
-    pub fn start_fins(&mut self, _: FinsIdle) -> (FinsStarted, [Result<(), FinCommsError>; 4]) {
+    pub fn start_fins(
+        &mut self,
+        _: FinsIdle,
+    ) -> (FinsStarted, [Result<(), FinCommsError>; NUM_FINS]) {
         info!("Starting fins");
 
-        let mut errs = [Ok(()); 4];
-        for i in 0..4 {
+        let mut errs = [Ok(()); NUM_FINS];
+        for i in 0..NUM_FINS {
             info!("Fin {}", i);
             self.select_fin(i);
 
@@ -235,17 +289,40 @@ impl<'d> Fins<'d> {
         (started, errs)
     }
 
-    pub fn erase_fin_flashes(&mut self, _: &FinsIdle) -> [Result<(), FinCommsError>; 4] {
+    pub fn erase_fin_flashes(&mut self, _: &FinsIdle) -> [Result<(), FinCommsError>; NUM_FINS] {
         info!("Erasing fin flashes");
 
-        let mut errs = [Ok(()); 4];
-        for i in 0..4 {
+        let mut errs = [Ok(()); NUM_FINS];
+        for i in 0..NUM_FINS {
             info!("Fin {}", i);
             self.select_fin(i);
             errs[i] = self.send_fin_cmd(FinCommands::EraseFlash);
         }
 
         errs
+    }
+
+    pub fn get_blocks_written(&self, fin_idx: usize) -> i16 {
+        self.pcnt.unit0.value()
+    }
+
+    pub fn get_fin_status(&mut self, _: &FinsIdle) -> [Result<[u8; 6], FinCommsError>; NUM_FINS] {
+        info!("Getting fin statuses");
+
+        let mut ret = [Ok([0; 6]); NUM_FINS];
+        for i in 0..NUM_FINS {
+            self.select_fin(i);
+            if let Err(e) = self.send_fin_cmd(FinCommands::SendStatus) {
+                ret[i] = Err(e);
+            } else if let Ok(status_data) = &mut ret[i] {
+                let uart = self.uart.as_mut().unwrap();
+                uart.read_exact(status_data);
+                let mut tmp = [0; 1];
+                uart.read_exact(&mut tmp);
+            }
+        }
+
+        ret
     }
 
     pub fn stop_fins(&mut self, _: FinsStarted) -> FinsIdle {
