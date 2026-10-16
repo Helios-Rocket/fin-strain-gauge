@@ -4,7 +4,6 @@ use crc_any::CRC;
 mod adc_consts;
 
 use adc_consts::*;
-use serde::{Serialize, Deserialize};
 pub use adc_consts::{AdcChannel, registers::gain::Gain};
 use defmt::{info, println};
 use hal::{
@@ -184,7 +183,7 @@ impl ADC {
         let rem = self.crc16.get_crc() as u16;
         //println!("CRC Error{}", rem);
         if rem != 0 {
-            Err(AdcError::CRC { computed: rem })
+            Err(AdcError::CRC)
         } else {
             Ok([
                 convert_adc2volts(

@@ -292,7 +292,7 @@ impl WinbondFlash {
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
 
-        if self.read_status_register(WinbondStatusReg::Three).to_le_bytes()[3] == 1{ //TODO: Check right bit
+        if self.read_status_register(WinbondStatusReg::Three) & 8 == 8{//TODO: Check right bit
             self.page_count += 1;
             Ok(())
         }
@@ -403,9 +403,9 @@ impl WinbondFlash {
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(500, self.clk_freq);
         
-        // TODO: Does this break things? while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
+        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
-        if self.read_status_register(WinbondStatusReg::Three).to_le_bytes()[2] == 1{ //TODO: Check right bit
+        if self.read_status_register(WinbondStatusReg::Three) & 4 == 4{ //TODO: Check right bit
             self.page_count += 1;
             Ok(())
         }

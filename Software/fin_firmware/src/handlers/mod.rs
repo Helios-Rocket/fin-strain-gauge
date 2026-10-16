@@ -7,18 +7,19 @@ use hal::pac::TIM1;
 use crate::adc::{self, ADC};
 use crate::flash::{self, WinbondFlash};
 use crate::statemachine::FinState;
-use crate::{ADC_ERROR_COUNT, COMMAND_READY, LAST_ADC_ERROR, LAST_WINBOND_ERROR, PULSE_READY, RX_BUF, RX_LEN, UART, WINBOND_ERROR_COUNT};
+use crate::{
+    ADC_ERROR_COUNT, COMMAND_READY, LAST_ADC_ERROR, LAST_WINBOND_ERROR, PULSE_READY, RX_BUF,
+    RX_LEN, UART, WINBOND_ERROR_COUNT,
+};
+use core::ops::Deref;
 use hal::{
     flash::{Bank, Flash},
     gpio::{Edge, Pin, PinMode},
     timer::Timer,
     usart::UsartInterrupt,
 };
+use shared::errors::{AdcError, WinbondFlashError};
 use shared::fin_commands::FinCommands;
-use shared::errors::{WinbondFlashError, AdcError, FinStatus}; 
-use core::ops::Deref;
-use serde::{Serialize, Deserialize};
-use postcard::{from_bytes, to_eio};
 
 pub struct StateHandler {
     adc: ADC,
@@ -109,7 +110,7 @@ impl StateHandler {
             match FinCommands::try_from(command[3]).unwrap() {
                 FinCommands::RecordData => Some(FinState::WaitForRecordPulse),
                 FinCommands::EraseFlash => Some(FinState::EraseFlash),
-                FinCommands::SendStatus => Some(FinState::SendStatus), 
+                FinCommands::SendStatus => Some(FinState::SendStatus),
                 _ => None,
             }
         } else {
@@ -143,7 +144,7 @@ impl StateHandler {
 
     pub fn handle_record_data(&mut self) -> Option<FinState> {
         //println!("Entered Record Data Handler");
-        //TODO: Does this if statement need to be here if wait for pulse sets the interrupt for rising edge? 
+        //TODO: Does this if statement need to be here if wait for pulse sets the interrupt for rising edge?
         if PULSE_READY.swap(false, Ordering::AcqRel) {
             if self.pb11.is_high() {
                 return Some(FinState::StopRecord);
@@ -170,7 +171,7 @@ impl StateHandler {
 
                     if self.record_idx == self.record_buf.len() {
                         println!("Writing to Flash");
-                        match self.winbond_flash.write_page(self.record_buf){
+                        match self.winbond_flash.write_page(self.record_buf) {
                             Ok(()) => {
                                 self.record_idx = 0;
                                 self.page += 1;
@@ -180,32 +181,28 @@ impl StateHandler {
                                 // });
                                 println!("Wrote to Flash");
                                 self.persist_status(true);
-                                self.pb10.toggle(); 
+                                self.pb10.toggle();
                             }
 
                             Err(e) => {
-                                critical_section::with(|cs|{
-                                    let count= ADC_ERROR_COUNT.borrow(cs).get(); 
-                                    WINBOND_ERROR_COUNT.borrow(cs).set(count + 1); 
+                                critical_section::with(|cs| {
+                                    let count = ADC_ERROR_COUNT.borrow(cs).get();
+                                    WINBOND_ERROR_COUNT.borrow(cs).set(count + 1);
                                     LAST_WINBOND_ERROR.borrow(cs).set(Some(e))
-                                }); 
+                                });
                             }
-
                         } // TODO: Have this return a write error if failure
-                       
                     }
                 }
                 None
             }
 
             Err(e) => {
-
-                critical_section::with(|cs|{
-                    let count= ADC_ERROR_COUNT.borrow(cs).get(); 
-                    ADC_ERROR_COUNT.borrow(cs).set(count + 1); 
+                critical_section::with(|cs| {
+                    let count = ADC_ERROR_COUNT.borrow(cs).get();
+                    ADC_ERROR_COUNT.borrow(cs).set(count + 1);
                     LAST_ADC_ERROR.borrow(cs).set(Some(e))
-
-                }); 
+                });
                 None
             }
         }
@@ -257,20 +254,21 @@ impl StateHandler {
     }
 
     pub fn handle_status_cmd(&mut self) -> Option<FinState> {
-
         critical_section::with(|cs| {
-            let adc_count = ADC_ERROR_COUNT.borrow(cs).get(); 
-            let last_adc = LAST_ADC_ERROR.borrow(cs).get(); 
-            let winbond_count = WINBOND_ERROR_COUNT.borrow(cs).get(); 
-            let last_winbond = LAST_WINBOND_ERROR.borrow(cs).get(); 
-            let status = FinStatus{adc_count, last_adc, winbond_count, last_winbond}; 
+            let adc_count = ADC_ERROR_COUNT.borrow(cs).get();
+            let last_adc = LAST_ADC_ERROR.borrow(cs).get();
+
+            let winbond_count = WINBOND_ERROR_COUNT.borrow(cs).get();
+            let last_winbond = LAST_WINBOND_ERROR.borrow(cs).get();
 
             access_global!(UART, uart, cs);
             uart.write(b"FIN").unwrap();
-            to_eio(&status, uart).unwrap(); 
-        
+            uart.write(&adc_count.to_le_bytes());
+            uart.write(&[last_adc.map_or(0, |e| 1 + e as u8)]);
+            uart.write(&winbond_count.to_le_bytes());
+            uart.write(&[last_winbond.map_or(0, |e| 1 + e as u8)]);
+            uart.write(&[0xFFu8]).unwrap();
         });
         Some(FinState::WaitForCommand)
     }
-
 }
