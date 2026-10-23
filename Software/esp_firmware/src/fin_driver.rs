@@ -1,5 +1,4 @@
 use defmt::{error, info};
-use embedded_io::Read;
 use esp_hal::{
     delay::Delay,
     gpio::{
@@ -153,7 +152,12 @@ impl<'d> Fins<'d> {
         // IMPORTANT: even though directly putting in the new rx and tx pins would also drop the old ones,
         // we must do it this way in case the old and new pins are actually the same, in which case
         // the drop will undo the effects of adding them, since the drop runs last.
-        let u = self.uart.take().unwrap().with_rx(NoPin).with_tx(NoPin);
+        let u = self
+            .uart
+            .take()
+            .unwrap()
+            .with_rx(Level::High)
+            .with_tx(NoPin);
         self.uart = Some(u);
         // NOTE: this disconnects the pins from the dedicated gpio peripheral and disables the corresponding output drivers
         self.synced_output = None;
@@ -177,7 +181,12 @@ impl<'d> Fins<'d> {
 
     fn enable_synced(&mut self) -> FinsStarted {
         // Drops any pin peripherals used for uart.
-        let u = self.uart.take().unwrap().with_rx(NoPin).with_tx(NoPin);
+        let u = self
+            .uart
+            .take()
+            .unwrap()
+            .with_rx(Level::High)
+            .with_tx(NoPin);
         self.uart = Some(u);
         // NOTE: this disconnects the pins from the dedicated gpio peripheral and disables the corresponding output drivers
         self.synced_output = None;
@@ -217,9 +226,10 @@ impl<'d> Fins<'d> {
         FinsStarted(())
     }
 
-    fn send_fin_cmd(&mut self, cmd: FinCommands) -> Result<(), FinCommsError> {
+    fn send_fin_cmd(&mut self, cmd: FinCommands) -> Result<(usize, [u8; 64]), FinCommsError> {
         let mut resp = [0u8; 64];
         let uart = self.uart.as_mut().unwrap();
+
         uart.write(b"FIN")?;
         uart.write(&[cmd as u8])?;
         uart.write(&[0xff])?;
@@ -235,23 +245,22 @@ impl<'d> Fins<'d> {
 
             if let Ok(n) = uart.read_buffered(&mut resp[i..]) {
                 i += n;
+                if n != 0 {
+                    info!("{} {} {:?}", n, i, resp[..i]);
+                }
                 if i >= 4 {
                     break;
                 }
             }
         }
         if &resp[0..3] == b"FIN" {
-            if FinCommands::try_from(resp[3])? == FinCommands::Failure {
-                loop {
-                    if let Ok(n) = uart.read_buffered(&mut resp[i..]) {
-                        i += n;
-                        if resp[i - 1] == 0xff {
-                            break;
-                        }
+            loop {
+                if let Ok(n) = uart.read_buffered(&mut resp[i..]) {
+                    i += n;
+                    if resp[i - 1] == 0xff {
+                        break;
                     }
                 }
-
-                error!("{=str}", str::from_utf8(&resp[4..i]).unwrap());
             }
         } else {
             error!(
@@ -263,21 +272,23 @@ impl<'d> Fins<'d> {
             ));
         }
 
-        Ok(())
+        Ok((i, resp))
     }
 
     pub fn start_fins(
         &mut self,
         _: FinsIdle,
-    ) -> (FinsStarted, [Result<(), FinCommsError>; NUM_FINS]) {
+    ) -> (FinsStarted, [Result<FinCommands, FinCommsError>; NUM_FINS]) {
         info!("Starting fins");
 
-        let mut errs = [Ok(()); NUM_FINS];
+        let mut errs = [Ok(FinCommands::Failure); NUM_FINS];
         for i in 0..NUM_FINS {
             info!("Fin {}", i);
             self.select_fin(i);
 
-            errs[i] = self.send_fin_cmd(FinCommands::RecordData);
+            errs[i] = self
+                .send_fin_cmd(FinCommands::RecordData)
+                .map(|(_, data)| FinCommands::try_from(data[3]).unwrap());
         }
 
         let started = self.enable_synced();
@@ -289,14 +300,19 @@ impl<'d> Fins<'d> {
         (started, errs)
     }
 
-    pub fn erase_fin_flashes(&mut self, _: &FinsIdle) -> [Result<(), FinCommsError>; NUM_FINS] {
+    pub fn erase_fin_flashes(
+        &mut self,
+        _: &FinsIdle,
+    ) -> [Result<FinCommands, FinCommsError>; NUM_FINS] {
         info!("Erasing fin flashes");
 
-        let mut errs = [Ok(()); NUM_FINS];
+        let mut errs = [Ok(FinCommands::Failure); NUM_FINS];
         for i in 0..NUM_FINS {
             info!("Fin {}", i);
             self.select_fin(i);
-            errs[i] = self.send_fin_cmd(FinCommands::EraseFlash);
+            errs[i] = self
+                .send_fin_cmd(FinCommands::EraseFlash)
+                .map(|(_, data)| FinCommands::try_from(data[3]).unwrap());
         }
 
         errs
@@ -312,14 +328,9 @@ impl<'d> Fins<'d> {
         let mut ret = [Ok([0; 6]); NUM_FINS];
         for i in 0..NUM_FINS {
             self.select_fin(i);
-            if let Err(e) = self.send_fin_cmd(FinCommands::SendStatus) {
-                ret[i] = Err(e);
-            } else if let Ok(status_data) = &mut ret[i] {
-                let uart = self.uart.as_mut().unwrap();
-                uart.read_exact(status_data);
-                let mut tmp = [0; 1];
-                uart.read_exact(&mut tmp);
-            }
+            ret[i] = self
+                .send_fin_cmd(FinCommands::SendStatus)
+                .map(|(_, data)| data[4..10].try_into().unwrap());
         }
 
         ret
