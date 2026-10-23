@@ -27,6 +27,7 @@ use hal::{
     timer::{self, Timer},
     usart::Usart,
 };
+use embedded_io::Write; 
 use handlers::StateHandler;
 use shared::winbond_flash;
 use shared::errors::{AdcError, WinbondFlashError}; 
@@ -104,14 +105,7 @@ unsafe fn main() -> ! {
             .expect("enable uart read not empty interrupt");
     });
 
-    let internal_flash = Flash::new(dp.FLASH);
-    let mut flight_flag = false;
-    internal_flash.read(
-        Bank::B1,
-        31,
-        0,
-        slice::from_mut(unsafe { core::mem::transmute(&mut flight_flag) }),
-    );
+    let mut internal_flash = Flash::new(dp.FLASH);
 
     let timer_config = TimerConfig {
         update_request_source: hal::timer::UpdateReqSrc::OverUnderFlow,
@@ -125,8 +119,7 @@ unsafe fn main() -> ! {
     let timer_start = timer.now();
     println!("Timer Start: {}", timer_start.as_nanos());
 
-    let mut state = FinState::new(flight_flag);
-    let mut handler = StateHandler::new(
+    let (mut handler, mut state) = StateHandler::new(
         adc,
         flash,
         internal_flash,
@@ -134,7 +127,6 @@ unsafe fn main() -> ! {
         timer_start,
         pb10,
         pb11,
-        flight_flag,
     );
 
     //========= Old Flash stuff =========================
@@ -147,6 +139,8 @@ unsafe fn main() -> ! {
     //===================================================
 
     println!("Starting Flight routine");
+    // info!("Erasing the Flash"); 
+    // handler.handle_erase_flash(); 
 
     loop {
         // while !uart_regs.isr().read().rxne().bit_is_set(){}
@@ -174,9 +168,12 @@ unsafe fn main() -> ! {
         //     flash.read_status_register(WinbondStatusReg::Three)
         // );
 
+ 
+
+        //===============================================================
+
         // Flight routine
 
-        info!("About to handle event");
         let next_state = match state {
             FinState::WaitForCommand => handler.handle_wait_for_command(),
             FinState::WaitForRecordPulse => handler.handle_wait_for_pulse(),
@@ -236,7 +233,7 @@ fn USART3() {
             }
         }
     });
-    println!("wah");
+    info!("wah");
 }
 
 // This is the TIM16 and TIM1 interrupt (we are using TIM1), the pac just calls it TIM16 for some reason

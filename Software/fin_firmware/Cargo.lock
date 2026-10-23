@@ -169,6 +169,7 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embedded-hal 1.0.0",
+ "embedded-io",
  "panic-probe",
  "shared",
  "stm32-hal2",

@@ -8,12 +8,3 @@ pub enum FinState {
     EraseFlash,
 }
 
-impl FinState {
-    pub fn new(flight_flag: bool) -> Self {
-        if flight_flag == true {
-            FinState::RecordData
-        } else {
-            FinState::WaitForCommand
-        }
-    }
-}

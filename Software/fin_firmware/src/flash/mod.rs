@@ -293,11 +293,11 @@ impl WinbondFlash {
         delay_us(1, self.clk_freq);
 
         if self.read_status_register(WinbondStatusReg::Three) & 8 == 8{//TODO: Check right bit
-            self.page_count += 1;
-            Ok(())
+            Err(WinbondFlashError::FailToWrite)
         }
         else{
-            Err(WinbondFlashError::FailToWrite)
+            self.page_count += 1;
+            Ok(())
         }
     }
 
@@ -406,11 +406,12 @@ impl WinbondFlash {
         while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
         if self.read_status_register(WinbondStatusReg::Three) & 4 == 4{ //TODO: Check right bit
-            self.page_count += 1;
-            Ok(())
+            //self.page_count += 1;
+            Err(WinbondFlashError::FailToErase)          
         }
         else{
-            Err(WinbondFlashError::FailToErase)
+
+            Ok(())
         }
         
     }
