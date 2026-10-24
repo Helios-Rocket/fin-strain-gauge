@@ -6,21 +6,22 @@ mod adc_consts;
 use adc_consts::*;
 pub use adc_consts::{AdcChannel, registers::gain::Gain};
 use defmt::{info, println};
+use embedded_hal::spi::MODE_1;
 use hal::{
+    access_global,
     clocks::Clocks,
     delay_ms, delay_us,
     gpio::{Pin, PinMode, Port},
     pac::{self, SPI2, TIM2},
-    spi::{Spi},
+    spi::Spi,
     timer::{Timer, TimerConfig},
 };
-use embedded_hal::spi::{MODE_1}; 
 
+use crate::SPI;
 use crate::adc::adc_consts::registers::clock::osr::OSR;
-use shared::errors::AdcError; 
+use shared::errors::AdcError;
 
 pub struct ADC {
-    spi: Spi<SPI2>,
     pwm: Timer<TIM2>,
     crc16: CRC,
     gains: [Gain; 3],
@@ -30,25 +31,13 @@ pub struct ADC {
 }
 
 impl ADC {
-    pub fn new(tim2_reg: TIM2, spi2_reg: SPI2, clk_config: &Clocks) -> Self {
+    pub fn new(tim2_reg: TIM2, clk_config: &Clocks) -> Self {
         println!("New ADC");
         let mut rst_pin = Pin::new(Port::B, 9, PinMode::Output);
         rst_pin.set_low(); // Make sure ADC is stopped during setup
 
         let mut cs_pin = Pin::new(Port::B, 12, PinMode::Output);
-        cs_pin.set_high();
-
-        let _sck = Pin::new(Port::B, 13, PinMode::Alt(5));
-        let _miso = Pin::new(Port::B, 14, PinMode::Alt(5));
-        let _mosi = Pin::new(Port::B, 15, PinMode::Alt(5));
-
-        let spi_config = hal::spi::SpiConfig {
-            mode: MODE_1,
-            ..Default::default()
-        };
-
-        // Setup SPI bus with clock speed of 8 MHz
-        let spi = Spi::new(spi2_reg, spi_config, hal::spi::BaudRate::Div8);
+        cs_pin.set_high(); //FIXME: Figure out where to move this, maybe make adc and adxl pins globals? 
 
         // Configure PWM for the ADC external clock- 8MHz
         let mut tim2 = Timer::new_tim2(tim2_reg, 8_000_000.0, TimerConfig::default(), clk_config);
@@ -68,7 +57,6 @@ impl ADC {
         delay_ms(5, clk_freq);
 
         let mut adc = Self {
-            spi,
             pwm: tim2,
             crc16: CRC::create_crc(0x1021, 16, 0xffff, 0, false),
             gains: [Gain::Times1; 3],
@@ -135,21 +123,26 @@ impl ADC {
 
         self.assert_cs();
 
-        self.spi
-            .write(&cmd.to_be_bytes()[1..])
-            .expect("Spi Write Command Failed!");
-        for _ in 0..4 {
-            self.spi
-                .write(&[0_u8, 0, 0])
-                .expect("Spi Write Zeros Failed!");
-        }
+        //FIXME: Do cs assertions need to be in the critical section, idk if it'll mess with things if both periphs assert at the same time...
+        critical_section::with(|cs| {
+            access_global!(SPI, spi, cs);
+            spi.write(&cmd.to_be_bytes()[1..])
+                .expect("Spi Write Command Failed!");
+            for _ in 0..4 {
+                spi.write(&[0_u8, 0, 0]).expect("Spi Write Zeros Failed!");
+            }
+        });
 
         self.unassert_cs();
 
         self.assert_cs();
 
         let mut buf = [0_u8; 15];
-        self.spi.transfer(&mut buf).expect("Spi Read Reg Failed!");
+
+        critical_section::with(|cs| {
+            access_global!(SPI, spi, cs);
+            spi.transfer(&mut buf).expect("Spi Read Reg Failed!");
+        });
 
         self.unassert_cs();
 
@@ -165,7 +158,11 @@ impl ADC {
 
         let mut buf = [0_u8; 15];
         // let mut buf = [0b10100010, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        self.spi.transfer(&mut buf).expect("Spi Transfer Failed!");
+        critical_section::with(|cs| {
+            access_global!(SPI, spi, cs);
+            spi.transfer(&mut buf).expect("Spi Transfer Failed!");
+        });
+
         //println!("Buffer {}", buf);
 
         self.unassert_cs();
@@ -208,17 +205,16 @@ impl ADC {
 
         self.assert_cs();
 
-        self.spi
-            .write(&cmd.to_be_bytes()[1..])
-            .expect("Spi Write Command Failed!");
-        self.spi
-            .write(&((data as u32) << 8).to_be_bytes()[1..])
-            .expect("Spi Write Command Data Failed!");
-        for _ in 0..3 {
-            self.spi
-                .write(&[0_u8, 0, 0])
-                .expect("Spi Write Zeros Failed!");
-        }
+        critical_section::with(|cs| {
+            access_global!(SPI, spi, cs);
+            spi.write(&cmd.to_be_bytes()[1..])
+                .expect("Spi Write Command Failed!");
+            spi.write(&((data as u32) << 8).to_be_bytes()[1..])
+                .expect("Spi Write Command Data Failed!");
+            for _ in 0..3 {
+                spi.write(&[0_u8, 0, 0]).expect("Spi Write Zeros Failed!");
+            }
+        });
 
         self.unassert_cs();
     }

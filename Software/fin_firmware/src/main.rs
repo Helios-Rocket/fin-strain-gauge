@@ -23,10 +23,12 @@ use hal::{
     flash::Flash,
     gpio::{Pin, PinMode, Port},
     instant::Instant,
-    pac::{self, interrupt},
+    pac::{self, interrupt, SPI2, TIM2},
     timer::{self, Timer},
     usart::Usart,
+    spi::Spi,
 };
+use embedded_hal::spi::{MODE_1}; 
 use embedded_io::Write; 
 use handlers::StateHandler;
 use shared::winbond_flash;
@@ -61,7 +63,7 @@ make_simple_globals!(
     (WINBOND_ERROR_COUNT, u16, 0),
 );
 
-make_globals!((UART, Usart<USART3>),);
+make_globals!((UART, Usart<USART3>), (SPI, Spi<SPI2>));
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
@@ -82,10 +84,22 @@ unsafe fn main() -> ! {
     let ahb_freq = clock_cfg.apb1();
     println!("{}", ahb_freq);
 
-    // Setup Peripherals
-    let mut led_pin = Pin::new(Port::B, 5, PinMode::Output);
-    let mut adc = ADC::new(dp.TIM2, dp.SPI2, &clock_cfg);
-    let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
+    // Setup SPI
+    // CS for ADC, figure out how to handle
+    // let mut cs_pin = Pin::new(Port::B, 12, PinMode::Output);
+    // cs_pin.set_high();
+
+    let _sck = Pin::new(Port::B, 13, PinMode::Alt(5));
+    let _miso = Pin::new(Port::B, 14, PinMode::Alt(5));
+    let _mosi = Pin::new(Port::B, 15, PinMode::Alt(5));
+
+    let spi_config = hal::spi::SpiConfig {
+        mode: MODE_1,
+        ..Default::default()
+    };
+
+    // Setup SPI bus with clock speed of 8 MHz
+    let spi = Spi::new(dp.SPI2, spi_config, hal::spi::BaudRate::Div8);
 
     // Comm pins to Avbay
     let mut pb10 = Pin::new(Port::B, 10, PinMode::Alt(7));
@@ -93,7 +107,12 @@ unsafe fn main() -> ! {
     let usart3 = Usart::new(dp.USART3, 1800, UsartConfig::default(), &clock_cfg)
         .expect("Failed to initialize");
 
-    init_globals!((UART, usart3));
+    init_globals!((UART, usart3), (SPI, spi));
+
+    // Setup Peripherals
+    let mut led_pin = Pin::new(Port::B, 5, PinMode::Output);
+    let mut adc = ADC::new(dp.TIM2, &clock_cfg);
+    let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
 
     setup_nvic!([(USART3, 2), (EXTI15_10, 1), (TIM16, 0)], cp);
     // Enable interrupt
