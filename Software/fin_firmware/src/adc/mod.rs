@@ -5,7 +5,7 @@ mod adc_consts;
 
 use adc_consts::*;
 pub use adc_consts::{AdcChannel, registers::gain::Gain};
-use defmt::{info, println};
+use defmt::{info, println, warn};
 use embedded_hal::spi::MODE_1;
 use hal::{
     access_global,
@@ -33,10 +33,20 @@ pub struct ADC {
 impl ADC {
     pub fn new(tim2_reg: TIM2, clk_config: &Clocks) -> Self {
         println!("New ADC");
-        let mut rst_pin = Pin::new(Port::B, 9, PinMode::Output);
-        rst_pin.set_low(); // Make sure ADC is stopped during setup
 
-        let mut cs_pin = Pin::new(Port::B, 12, PinMode::Output);
+        let (mut rst_pin, mut cs_pin) = if cfg!(feature = "prototype") {
+            (
+                Pin::new(Port::B, 9, PinMode::Output),
+                Pin::new(Port::B, 12, PinMode::Output),
+            )
+        } else {
+            (
+                Pin::new(Port::B, 4, PinMode::Output),
+                Pin::new(Port::A, 4, PinMode::Output),
+            )
+        };
+
+        rst_pin.set_low(); // Make sure ADC is stopped during setup
         cs_pin.set_high(); //FIXME: Figure out where to move this, maybe make adc and adxl pins globals? 
 
         // Configure PWM for the ADC external clock- 8MHz
@@ -120,16 +130,14 @@ impl ADC {
     fn read_register(&mut self, addr: u8) -> u16 {
         let addr: u32 = (addr as u32) & 0x3F;
         let cmd: u32 = (0b101_u32 << 13 | addr << 7) << 8;
-
         self.assert_cs();
 
         //FIXME: Do cs assertions need to be in the critical section, idk if it'll mess with things if both periphs assert at the same time...
         critical_section::with(|cs| {
             access_global!(SPI, spi, cs);
-            spi.write(&cmd.to_be_bytes()[1..])
-                .expect("Spi Write Command Failed!");
+            spi.write(&cmd.to_be_bytes()[1..]).unwrap();
             for _ in 0..4 {
-                spi.write(&[0_u8, 0, 0]).expect("Spi Write Zeros Failed!");
+                spi.write(&[0_u8, 0, 0]).unwrap();
             }
         });
 

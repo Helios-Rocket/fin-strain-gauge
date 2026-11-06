@@ -7,6 +7,8 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use cortex_m::delay;
 use defmt::{error, info, println};
+use embedded_hal::spi::MODE_1;
+use embedded_io::Write;
 use flash::WinbondFlash;
 use hal::flash::Bank;
 use hal::pac::USART3;
@@ -23,25 +25,26 @@ use hal::{
     flash::Flash,
     gpio::{Pin, PinMode, Port},
     instant::Instant,
-    pac::{self, interrupt, SPI2, TIM2},
+    pac::{self, SPI1, SPI2, TIM2, interrupt},
+    spi::Spi,
     timer::{self, Timer},
     usart::Usart,
-    spi::Spi,
 };
-use embedded_hal::spi::{MODE_1}; 
-use embedded_io::Write; 
 use handlers::StateHandler;
+use shared::errors::{AdcError, WinbondFlashError};
 use shared::winbond_flash;
-use shared::errors::{AdcError, WinbondFlashError}; 
 use statemachine::FinState;
 
 use defmt_rtt as _;
 use panic_probe as _;
 
 use shared::winbond_flash::WinbondStatusReg;
+
+use crate::adxl::ADXL;
 // use shared::communication::CommunicationProtocol
 
 mod adc;
+mod adxl;
 mod flash;
 mod handlers;
 mod statemachine;
@@ -63,10 +66,16 @@ make_simple_globals!(
     (WINBOND_ERROR_COUNT, u16, 0),
 );
 
-make_globals!((UART, Usart<USART3>), (SPI, Spi<SPI2>));
+#[cfg(feature = "prototype")]
+type SENSOR_SPI = SPI2;
+#[cfg(not(feature = "prototype"))]
+type SENSOR_SPI = SPI1;
+
+make_globals!((UART, Usart<USART3>), (SPI, Spi<SENSOR_SPI>));
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
+    println!("hello world");
     let mut cp = cortex_m::Peripherals::take().unwrap();
     let mut dp = pac::Peripherals::take().unwrap();
 
@@ -88,10 +97,19 @@ unsafe fn main() -> ! {
     // CS for ADC, figure out how to handle
     // let mut cs_pin = Pin::new(Port::B, 12, PinMode::Output);
     // cs_pin.set_high();
+    #[cfg(feature = "prototype")]
+    {
+        let _sck = Pin::new(Port::B, 13, PinMode::Alt(5));
+        let _miso = Pin::new(Port::B, 14, PinMode::Alt(5));
+        let _mosi = Pin::new(Port::B, 15, PinMode::Alt(5));
+    }
 
-    let _sck = Pin::new(Port::B, 13, PinMode::Alt(5));
-    let _miso = Pin::new(Port::B, 14, PinMode::Alt(5));
-    let _mosi = Pin::new(Port::B, 15, PinMode::Alt(5));
+    #[cfg(not(feature = "prototype"))]
+    {
+        let _sck = Pin::new(Port::A, 5, PinMode::Alt(5));
+        let _miso = Pin::new(Port::A, 11, PinMode::Alt(5));
+        let _mosi = Pin::new(Port::A, 12, PinMode::Alt(5));
+    }
 
     let spi_config = hal::spi::SpiConfig {
         mode: MODE_1,
@@ -99,7 +117,14 @@ unsafe fn main() -> ! {
     };
 
     // Setup SPI bus with clock speed of 8 MHz
-    let spi = Spi::new(dp.SPI2, spi_config, hal::spi::BaudRate::Div8);
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "prototype")] {
+            let spi_periph = dp.SPI2;
+        } else {
+            let spi_periph = dp.SPI1;
+        }
+    }
+    let spi = Spi::new(spi_periph, spi_config, hal::spi::BaudRate::Div32);
 
     // Comm pins to Avbay
     let mut pb10 = Pin::new(Port::B, 10, PinMode::Alt(7));
@@ -110,9 +135,22 @@ unsafe fn main() -> ! {
     init_globals!((UART, usart3), (SPI, spi));
 
     // Setup Peripherals
-    let mut led_pin = Pin::new(Port::B, 5, PinMode::Output);
+    cfg_if::cfg_if! {
+        if #[cfg(not(feature = "prototype"))] {
+            let mut adxl1_cs = Pin::new(Port::B, 6, PinMode::Output);
+            adxl1_cs.set_high();
+            let mut adxl2_cs = Pin::new(Port::B, 7, PinMode::Output);
+            adxl2_cs.set_high();
+        }
+    }
     let mut adc = ADC::new(dp.TIM2, &clock_cfg);
     let mut flash = WinbondFlash::new(&mut dp.RCC, dp.QUADSPI, &clock_cfg);
+    cfg_if::cfg_if! {
+        if #[cfg(not(feature = "prototype"))] {
+            let mut adxl1 = ADXL::new(&clock_cfg, adxl1_cs);
+            let mut adxl2 = ADXL::new(&clock_cfg, adxl2_cs);
+        }
+    }
 
     setup_nvic!([(USART3, 2), (EXTI15_10, 1), (TIM16, 0)], cp);
     // Enable interrupt
@@ -138,15 +176,8 @@ unsafe fn main() -> ! {
     let timer_start = timer.now();
     println!("Timer Start: {}", timer_start.as_nanos());
 
-    let (mut handler, mut state) = StateHandler::new(
-        adc,
-        flash,
-        internal_flash,
-        timer,
-        timer_start,
-        pb10,
-        pb11,
-    );
+    // let (mut handler, mut state) =
+        // StateHandler::new(adc, flash, internal_flash, timer, timer_start, pb10, pb11);
 
     //========= Old Flash stuff =========================
     // Check if block bad
@@ -157,11 +188,27 @@ unsafe fn main() -> ! {
     // // println!("Done writing first page");#[repr(
     //===================================================
 
-    println!("Starting Flight routine");
-    // info!("Erasing the Flash"); 
-    // handler.handle_erase_flash(); 
+    //println!("Starting Flight routine");
+    // info!("Erasing the Flash");
+    // handler.handle_erase_flash();
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "prototype")] {
+            let mut led = Pin::new(Port::B, 5, PinMode::Output);
+        } else {
+            let mut led = Pin::new(Port::A, 8, PinMode::Output);
+        }
+    }
+    led.set_high();
 
     loop {
+        println!("ADXL 2"); 
+        adxl2.read_status_register();
+        println!("ADXL 1"); 
+        adxl1.read_status_register();
+        // info!("{:?}", adc.read_adc_data().unwrap());
+        delay_ms(500, ahb_freq);
+
         // while !uart_regs.isr().read().rxne().bit_is_set(){}
 
         // println!("UART isr reading: {:b}", uart_regs.isr().read().bits());
@@ -187,23 +234,21 @@ unsafe fn main() -> ! {
         //     flash.read_status_register(WinbondStatusReg::Three)
         // );
 
- 
-
         //===============================================================
 
         // Flight routine
 
-        let next_state = match state {
-            FinState::WaitForCommand => handler.handle_wait_for_command(),
-            FinState::WaitForRecordPulse => handler.handle_wait_for_pulse(),
-            FinState::RecordData => handler.handle_record_data(),
-            FinState::StopRecord => handler.handle_stop_recording(),
-            FinState::EraseFlash => handler.handle_erase_flash(),
-            FinState::SendStatus => handler.handle_status_cmd(),
-        };
-        if let Some(next_state) = next_state {
-            state = next_state;
-        }
+        //     let next_state = match state {
+        //         FinState::WaitForCommand => handler.handle_wait_for_command(),
+        //         FinState::WaitForRecordPulse => handler.handle_wait_for_pulse(),
+        //         FinState::RecordData => handler.handle_record_data(),
+        //         FinState::StopRecord => handler.handle_stop_recording(),
+        //         FinState::EraseFlash => handler.handle_erase_flash(),
+        //         FinState::SendStatus => handler.handle_status_cmd(),
+        //     };
+        //     if let Some(next_state) = next_state {
+        //         state = next_state;
+        //     }
     }
 }
 
