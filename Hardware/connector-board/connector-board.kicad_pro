@@ -559,7 +559,7 @@
       "plot": "",
       "pos_files": "",
       "specctra_dsn": "",
-      "step": "",
+      "step": "connector-board.step",
       "svg": "",
       "vrml": ""
     },

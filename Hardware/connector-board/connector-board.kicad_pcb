@@ -525,7 +525,7 @@
 			(uuid "73086704-ed2a-4d84-989b-116fb7909fc2")
 		)
 		(embedded_fonts no)
-		(model "/home/dash/projects/fin-strain-gauge/Hardware/libraries/3d/SFW6R-3STE1LF.step"
+		(model "${KIPRJMOD}/../libraries/3d/SFW6R-3STE1LF.step"
 			(offset
 				(xyz 17.25 -2.5 2.5)
 			)
@@ -1058,7 +1058,7 @@
 			(uuid "1947844c-dc86-4fb5-b9a0-6904b29cf151")
 		)
 		(embedded_fonts no)
-		(model "/home/dash/projects/fin-strain-gauge/Hardware/libraries/3d/SFW6R-3STE1LF.step"
+		(model "${KIPRJMOD}/../libraries/3d/SFW6R-3STE1LF.step"
 			(offset
 				(xyz 17.25 -2.5 2.5)
 			)
@@ -1468,7 +1468,7 @@
 			(uuid "319fac9d-3c07-483d-a80c-193d05dbaa1c")
 		)
 		(embedded_fonts no)
-		(model "/home/dash/projects/fin-strain-gauge/Hardware/libraries/3d/SFW6R-3STE1LF.step"
+		(model "${KIPRJMOD}/../libraries/3d/SFW6R-3STE1LF.step"
 			(offset
 				(xyz 17.25 -2.5 2.5)
 			)
@@ -2664,7 +2664,7 @@
 			(uuid "1c933bfd-5315-4fe4-8569-0fee34373859")
 		)
 		(embedded_fonts no)
-		(model "/home/dash/projects/fin-strain-gauge/Hardware/libraries/3d/SFW6R-3STE1LF.step"
+		(model "${KIPRJMOD}/../libraries/3d/SFW6R-3STE1LF.step"
 			(offset
 				(xyz 17.25 -2.5 2.5)
 			)
