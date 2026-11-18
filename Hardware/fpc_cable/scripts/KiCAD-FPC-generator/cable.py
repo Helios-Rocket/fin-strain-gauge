@@ -1,9 +1,9 @@
 from fpc_generator import *
 
 cable_top = None
-cable_bot = Cable(0.2, .8, .3, .8, .3, .3, .3, .3, 0.2)
+cable_bot = Cable(0.2, .8, .3, .3, .3, .3, .3, .8, 0.2)
 sections = [
-    Down(610),
+    Down(445),
     Curve(3),
     Right(25),
 ]
