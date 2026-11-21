@@ -1,5 +1,5 @@
 use cortex_m::asm::nop;
-use defmt::{info, println};
+use defmt::{info, println, warn};
 use hal::{
     clocks::Clocks,
     delay_ms, delay_us,
@@ -7,12 +7,18 @@ use hal::{
     pac::{QUADSPI, RCC},
     qspi::Qspi,
 };
+use shared::errors::WinbondFlashError;
 use shared::winbond_flash::{WinbondInstruction, WinbondStatusReg};
-use shared::errors::WinbondFlashError; 
 
-pub const BYTES_PER_PAGE: u32 = 2048;
+pub const BYTES_PER_PAGE: usize = 2048;
 pub const PAGES_PER_BLOCK: u32 = 64;
-pub const FLASH_SIZE_BYTES: u32 = 512 * PAGES_PER_BLOCK * BYTES_PER_PAGE;
+
+#[cfg(feature = "prototype")]
+pub const BLOCKS_IN_FLASH: u32 = 512;
+#[cfg(not(feature = "prototype"))]
+pub const BLOCKS_IN_FLASH: u32 = 2048;
+
+pub const FLASH_SIZE_BYTES: u32 = BLOCKS_IN_FLASH * PAGES_PER_BLOCK * BYTES_PER_PAGE as u32;
 
 pub struct WinbondFlash {
     // TODO: Finish this
@@ -57,7 +63,7 @@ impl WinbondFlash {
 
         // We don't setup the ccr register here, since it might have different configurations on each use
 
-        // Set the flash size, which is 512Mbits
+        // Set the flash size, which is ~~512Mbits~~ 2Gbits
         // The actual size is given by 2^(FSIZE + 1)
         let fsize = FLASH_SIZE_BYTES.ilog2() - 1;
         regs.dcr().modify(|_, w| w.fsize().set(fsize as u8));
@@ -114,10 +120,35 @@ impl WinbondFlash {
         while flash.regs.sr().read().tcf().is_not_complete() {}
         flash.regs.fcr().write(|w| w.ctcf().clear());
 
+        flash.regs.dlr().write(|w| w.dl().set(0));
+        flash.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::WriteStatusRegister as u8)
+                .admode()
+                .single_line()
+                .adsize()
+                .bit8()
+                .dmode()
+                .single_line()
+        });
+
+        flash
+            .regs
+            .ar()
+            .write(|w| w.address().set((WinbondStatusReg::Two as u8) as u32));
+        flash.regs.dr8().write(|w| w.data().set(0b10001)); // Enable ECC and Quad IO
+
+        while flash.regs.sr().read().tcf().is_not_complete() {}
+        flash.regs.fcr().write(|w| w.ctcf().clear());
+
         flash
     }
 
-    pub fn is_block_bad(&mut self, addr: u16) -> bool {
+    pub fn is_block_bad(&mut self, addr: u32) -> bool {
         self.regs.ccr().write(|w| {
             w.fmode()
                 .indirect_write()
@@ -128,11 +159,7 @@ impl WinbondFlash {
                 .admode()
                 .single_line()
                 .adsize()
-                .bit24() /* NOTE: the address is only 16 bits, but we need 8 dummy cycles between the instruction and address,
-                   so the 8 MSB of the address (which will all be 0) are used for that purpose.
-                   Also note that we cannot use the data section to send the address, since the STM32L412 has errata relating to using dummy cycles
-                   along with data which causes the first nibble of the data to be lost if any dummy cycles are used
-                */
+                .bit24()
                 .dmode()
                 .no_data()
         });
@@ -145,7 +172,7 @@ impl WinbondFlash {
         self.regs.fcr().write(|w| w.ctcf().clear());
 
         // NOTE: the winbond datasheet says a 5us delays is needed before issuing another command after Page Data Read, but sometimes we need more than that?
-        delay_us(50, self.clk_freq);
+        delay_us(500, self.clk_freq);
 
         while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
@@ -179,7 +206,9 @@ impl WinbondFlash {
 
         while self.regs.sr().read().tcf().is_not_complete() {}
 
-        // println!("{:x}", data);
+        if data[0] != 0xff {
+            warn!("First byte: 0x{:x}", data[0]);
+        }
 
         data[0] != 0xff
         // false
@@ -215,14 +244,44 @@ impl WinbondFlash {
         let word = self.regs.dr8().read().bits(); // data register 8 bit access, read the bits 
 
         // NOTE: This seems to be required to stop the code from either hanging or reporting wrong values on a following read... no clue why.
-        for _ in 0..16 {
+        for _ in 0..32 {
             nop();
         }
 
         word
     }
 
-    pub fn write_page(&mut self, data: [u32; 512]) -> Result<(), WinbondFlashError>{
+    pub fn get_id(&mut self) -> [u8; 2] {
+        self.regs.dlr().write(|w| w.dl().set(1));
+
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_read()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::ReadJedecId as u8)
+                .admode()
+                .single_line()
+                .adsize()
+                .bit8()
+                .dmode()
+                .single_line()
+        });
+
+        self.regs.ar().write(|w| w.address().set(0));
+
+        while self.regs.sr().read().tcf().is_not_complete() {}
+        self.regs.fcr().write(|w| w.ctcf().clear());
+
+        [self.regs.dr8().read().bits(), self.regs.dr8().read().bits()]
+    }
+
+    pub fn write_page(
+        &mut self,
+        data: [u8; BYTES_PER_PAGE],
+        addr: u32,
+    ) -> Result<(), WinbondFlashError> {
         // Write Enable command
         self.regs.fcr().write(|w| w.ctcf().clear());
         self.regs.ccr().write(|w| {
@@ -262,13 +321,13 @@ impl WinbondFlash {
 
         self.regs.ar().write(|w| w.address().set(0));
         for word in data {
-            self.regs.dr().write(|w| w.data().set(word));
+            while self.regs.sr().read().flevel().bits() == 16 {}
+            self.regs.dr8().write(|w| w.data().set(word));
         }
 
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait 
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
-        println!("{:08b}", self.read_status_register(WinbondStatusReg::Three));
 
         // Program execute- transfers the data from the buffer to the designated page
         self.regs.fcr().write(|w| w.ctcf().clear());
@@ -285,23 +344,24 @@ impl WinbondFlash {
                 .bit24()
         });
 
-        self.regs
-            .ar()
-            .write(|w| w.address().set(self.page_count as u32));
+        self.regs.ar().write(
+            |w| w.address().set(addr), // .set(self.page_count as u32)
+        );
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait 
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(1, self.clk_freq);
 
-        if self.read_status_register(WinbondStatusReg::Three) & 8 == 8{//TODO: Check right bit
+        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
+
+        if self.read_status_register(WinbondStatusReg::Three) & 0b1000 != 0 {
             Err(WinbondFlashError::FailToWrite)
-        }
-        else{
+        } else {
             self.page_count += 1;
             Ok(())
         }
     }
 
-    pub fn read_page(&mut self, addr: u16) {
+    pub fn read_page(&mut self, addr: u32) -> [u8; 2048] {
         self.regs.ccr().write(|w| {
             w.fmode()
                 .indirect_write()
@@ -312,26 +372,21 @@ impl WinbondFlash {
                 .admode()
                 .single_line()
                 .adsize()
-                .bit24() /* NOTE: the address is only 16 bits, but we need 8 dummy cycles between the instruction and address,
-                   so the 8 MSB of the address (which will all be 0) are used for that purpose.
-                   Also note that we cannot use the data section to send the address, since the STM32L412 has errata relating to using dummy cycles
-                   along with data which causes the first nibble of the data to be lost if any dummy cycles are used
-                */
+                .bit24()
                 .dmode()
                 .no_data()
         });
 
-        self.regs.ar().write(|w| w.address().set((addr) as u32));
+        self.regs.ar().write(|w| w.address().set(addr));
 
         while self.regs.sr().read().tcf().is_not_complete() {}
         self.regs.fcr().write(|w| w.ctcf().clear());
 
         // NOTE: the winbond datasheet says a 5us delays is needed before issuing another command after Page Data Read, but sometimes we need more than that?
-        delay_us(50, self.clk_freq);
+        delay_us(500, self.clk_freq);
 
         while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
-        // We only need the first byte of data returned, though the flash chip would continue outputting up to 2048 bytes if we wanted
         self.regs.dlr().write(|w| w.dl().set(2047));
         self.regs.ccr().write(|w| {
             w.fmode()
@@ -361,12 +416,69 @@ impl WinbondFlash {
 
         while self.regs.sr().read().tcf().is_not_complete() {}
 
-        println!("{:x}", data);
+        return data;
+    }
+
+    /// Erases the block corresponding to the given page
+    pub fn erase_block(&mut self, addr: u32) -> Result<(), WinbondFlashError> {
+        // Write Enable command
+        // TODO: Add in error handling
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::WriteEnable as u8) //instruction sent to the external device
+                .admode()
+                .no_address()
+                .dmode()
+                .no_data()
+        });
+
+        while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        delay_us(1, self.clk_freq);
+
+        // Erase Chip
+        self.regs.ccr().write(|w| {
+            w.fmode()
+                .indirect_write()
+                .imode()
+                .single_line()
+                .instruction()
+                .set(WinbondInstruction::BlockErase as u8)
+                .admode()
+                .single_line()
+                .admode()
+                .single_line()
+                .adsize()
+                .bit24()
+                .dmode()
+                .no_data()
+        });
+
+        self.regs.ar().write(|w| w.address().set(addr));
+
+        while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
+        self.regs.fcr().write(|w| w.ctcf().clear());
+        delay_us(500, self.clk_freq);
+
+        while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
+
+        if self.read_status_register(WinbondStatusReg::Three) & 0b100 != 0 {
+            //TODO: Check right bit
+            //self.page_count += 1;
+            Err(WinbondFlashError::FailToErase)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn erase_chip(&mut self) -> Result<(), WinbondFlashError> {
         // Write Enable command
-        // TODO: Add in error handling 
+        // TODO: Add in error handling
         self.regs.fcr().write(|w| w.ctcf().clear());
         self.regs.ccr().write(|w| {
             w.fmode()
@@ -394,25 +506,23 @@ impl WinbondFlash {
                 .instruction()
                 .set(WinbondInstruction::ChipErase as u8)
                 .admode()
-                .single_line()
-                .admode()
                 .no_address()
+                .dmode()
+                .no_data()
         });
 
         while self.regs.sr().read().tcf().is_not_complete() {} // While the transfer complete flag is on, wait
         self.regs.fcr().write(|w| w.ctcf().clear());
         delay_us(500, self.clk_freq);
-        
+
         while self.read_status_register(WinbondStatusReg::Three) & 1 != 0 {}
 
-        if self.read_status_register(WinbondStatusReg::Three) & 4 == 4{ //TODO: Check right bit
+        if self.read_status_register(WinbondStatusReg::Three) & 0b100 != 0 {
+            //TODO: Check right bit
             //self.page_count += 1;
-            Err(WinbondFlashError::FailToErase)          
-        }
-        else{
-
+            Err(WinbondFlashError::FailToErase)
+        } else {
             Ok(())
         }
-        
     }
 }

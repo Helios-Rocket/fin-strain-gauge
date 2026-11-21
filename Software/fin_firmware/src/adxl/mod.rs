@@ -19,16 +19,17 @@ pub struct ADXL {
 }
 
 impl ADXL {
+    /// Set cs_pin high before doing any SPI transfers on the bus
     pub fn new(clk_config: &Clocks, mut cs_pin: Pin) -> Self {
         println!("New ADXL!");
 
         // Needs to be passed in since there are two accelerometers
-        cs_pin.set_high(); //FIXME: Figure out where to move this, maybe make adc and adxl pins globals? 
+        cs_pin.set_high();
 
         let clk_freq = clk_config.apb1();
-        delay_ms(2, clk_freq); // Put between standby and measure op mode
+        // delay_ms(2, clk_freq); // Put between standby and measure op mode
 
-        let mut adxl = Self { cs_pin, clk_freq };
+        let adxl = Self { cs_pin, clk_freq };
 
         adxl
     }
@@ -45,13 +46,7 @@ impl ADXL {
         delay_us(1, self.clk_freq);
     }
 
-    pub fn read_status_register(&mut self) {
-        // Read register 0x00 and expect result 0xAD
-        let reg = self.read_register(0x00);
-        println!("ADXL Status Reg Val {:x}", reg);
-    }
-
-    fn read_register(&mut self, addr: u8) -> u8 {
+    pub fn read_register(&mut self, addr: u8) -> u8 {
         let cmd: u8 = (addr << 1) | 0b1;
 
         let mut buf = [cmd, 0];
@@ -61,12 +56,7 @@ impl ADXL {
         //FIXME: Do cs assertions need to be in the critical section, idk if it'll mess with things if both periphs assert at the same time...
         critical_section::with(|cs| {
             access_global!(SPI, spi, cs);
-            spi.disable().unwrap();
-            spi.regs
-                .cr1()
-                .modify(|_, w| w.cpha().clear_bit().spe().set_bit());
-            spi.transfer(&mut buf)
-                .expect("Spi Write Command Failed!");
+            spi.transfer(&mut buf).expect("Spi Write Command Failed!");
         });
 
         self.unassert_cs();
@@ -81,8 +71,7 @@ impl ADXL {
 
         critical_section::with(|cs| {
             access_global!(SPI, spi, cs);
-            spi.write(&buf)
-                .expect("Spi Write Command Failed!");
+            spi.write(&buf).expect("Spi Write Command Failed!");
         });
 
         self.unassert_cs();

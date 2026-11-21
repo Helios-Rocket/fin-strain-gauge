@@ -82,8 +82,8 @@ impl ADC {
 
         adc.set_osr(OSR::Times512);
 
-        adc.set_gain(AdcChannel::CH1, Gain::Times128);
-        adc.set_gain(AdcChannel::CH2, Gain::Times128);
+        adc.set_gain(AdcChannel::CH1, Gain::Times2);
+        adc.set_gain(AdcChannel::CH2, Gain::Times2);
         adc.enable_adc_channels();
 
         // fin.write_register(0x8, 0b0100);

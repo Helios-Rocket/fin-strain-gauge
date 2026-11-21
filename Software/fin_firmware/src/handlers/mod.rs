@@ -1,10 +1,10 @@
 use core::ptr::copy;
 use core::sync::atomic::Ordering;
 use defmt::{error, info, println};
+use embedded_io::Write;
 use hal::access_global;
 use hal::instant::Instant;
 use hal::pac::TIM1;
-use embedded_io::Write; 
 
 use crate::adc::{self, ADC};
 use crate::flash::{self, WinbondFlash};
@@ -15,11 +15,11 @@ use crate::{
 };
 use core::ops::Deref;
 use hal::{
+    delay_ms,
     flash::{Bank, Flash},
     gpio::{Edge, Pin, PinMode},
     timer::Timer,
     usart::UsartInterrupt,
-    delay_ms,
 };
 use shared::errors::{AdcError, WinbondFlashError};
 use shared::fin_commands::FinCommands;
@@ -48,8 +48,6 @@ impl StateHandler {
         pb10: Pin,
         pb11: Pin,
     ) -> (Self, FinState) {
-
-        
         let page = if pb11.is_low() {
             let mut meta = [0u8; 4];
             internal_flash.read(Bank::B1, 31, 0, &mut meta);
@@ -58,29 +56,39 @@ impl StateHandler {
             0
         };
 
-        let recording_start = if pb11.is_low() { Some(timer.now())} else { None };
-        let state = if pb11.is_low(){FinState::RecordData} else {FinState::WaitForCommand}; 
+        let recording_start = if pb11.is_low() {
+            Some(timer.now())
+        } else {
+            None
+        };
+        let state = if pb11.is_low() {
+            FinState::RecordData
+        } else {
+            FinState::WaitForCommand
+        };
 
-        (Self {
-            adc,
-            winbond_flash,
-            internal_flash,
-            timer,
-            timer_start,
-            recording_start,
-            pb10,
-            pb11,
-            record_buf: [0u32; 512],
-            record_idx: 0,
-            page,
-        }, state)
+        (
+            Self {
+                adc,
+                winbond_flash,
+                internal_flash,
+                timer,
+                timer_start,
+                recording_start,
+                pb10,
+                pb11,
+                record_buf: [0u32; 512],
+                record_idx: 0,
+                page,
+            },
+            state,
+        )
     }
 
     fn persist_status(&mut self) {
-
-        let mut flash_data = [0;8]; 
-        flash_data[0..4].copy_from_slice(&self.page.to_le_bytes()); 
-        flash_data[4..8].copy_from_slice(&self.record_idx.to_le_bytes()); 
+        let mut flash_data = [0; 8];
+        flash_data[0..4].copy_from_slice(&self.page.to_le_bytes());
+        flash_data[4..8].copy_from_slice(&self.record_idx.to_le_bytes());
 
         let _ = self.internal_flash.unlock();
         let _ = self
@@ -128,13 +136,13 @@ impl StateHandler {
     pub fn handle_wait_for_pulse(&mut self) -> Option<FinState> {
         println!("Entered wait for pulse handler");
 
-        // Send ready to esp 
+        // Send ready to esp
         critical_section::with(|cs| {
             access_global!(UART, uart, cs);
             uart.write(b"FIN").unwrap();
-            info!("Sent FIN"); 
+            info!("Sent FIN");
             uart.write(&[FinCommands::Success as u8, 0xff]).unwrap();
-            info!("Sent Success and FF"); 
+            info!("Sent Success and FF");
             uart.flush();
         });
 
@@ -168,13 +176,15 @@ impl StateHandler {
             }
         }
 
-        // FIXME: Add data rate limit to adc read 
+        // FIXME: Add data rate limit to adc read
         match self.adc.read_adc_data() {
             Ok(samples) => {
                 // Record sample time
 
-               self.record_buf[self.record_idx] =
-                    self.timer.elapsed(self.recording_start.unwrap()).as_millis() as u32;
+                self.record_buf[self.record_idx] = self
+                    .timer
+                    .elapsed(self.recording_start.unwrap())
+                    .as_millis() as u32;
                 self.record_idx += 1;
 
                 //println!("ADC Reading: {}", samples);
@@ -189,25 +199,25 @@ impl StateHandler {
 
                     if self.record_idx == self.record_buf.len() {
                         println!("Writing to Flash");
-                        match self.winbond_flash.write_page(self.record_buf) {
-                            Ok(()) => {
-                                self.record_idx = 0;
-                                self.page += 1;
-                                println!("Wrote to Flash");
-                                if self.page % 10 == 0{
-                                    self.persist_status();                                        
-                                }
-                                self.pb10.toggle();
-                            }
+                        // match self.winbond_flash.write_page(self.record_buf) {
+                        //     Ok(()) => {
+                        //         self.record_idx = 0;
+                        //         self.page += 1;
+                        //         println!("Wrote to Flash");
+                        //         if self.page % 10 == 0 {
+                        //             self.persist_status();
+                        //         }
+                        //         self.pb10.toggle();
+                        //     }
 
-                            Err(e) => {
-                                critical_section::with(|cs| {
-                                    let count = ADC_ERROR_COUNT.borrow(cs).get();
-                                    WINBOND_ERROR_COUNT.borrow(cs).set(count + 1);
-                                    LAST_WINBOND_ERROR.borrow(cs).set(Some(e))
-                                });
-                            }
-                        } // TODO: Have this return a write error if failure
+                        //     Err(e) => {
+                        //         critical_section::with(|cs| {
+                        //             let count = ADC_ERROR_COUNT.borrow(cs).get();
+                        //             WINBOND_ERROR_COUNT.borrow(cs).set(count + 1);
+                        //             LAST_WINBOND_ERROR.borrow(cs).set(Some(e))
+                        //         });
+                        //     }
+                        // } // TODO: Have this return a write error if failure
                     }
                 }
                 None
@@ -227,7 +237,7 @@ impl StateHandler {
     pub fn handle_stop_recording(&mut self) -> Option<FinState> {
         println!("Stop recording handler entered");
         // Finish recording final buffer
-        self.winbond_flash.write_page(self.record_buf);
+        // self.winbond_flash.write_page(self.record_buf);
         self.page += 1;
 
         // Set flight flag to off
@@ -270,7 +280,7 @@ impl StateHandler {
     }
 
     pub fn handle_status_cmd(&mut self) -> Option<FinState> {
-        info!("Entered Status Handler"); 
+        info!("Entered Status Handler");
         critical_section::with(|cs| {
             let adc_count = ADC_ERROR_COUNT.borrow(cs).get();
             let last_adc = LAST_ADC_ERROR.borrow(cs).get();
@@ -280,11 +290,12 @@ impl StateHandler {
 
             access_global!(UART, uart, cs);
             uart.write(b"FIN").unwrap();
-            uart.write(&[FinCommands::Success as u8]).unwrap(); 
+            uart.write(&[FinCommands::Success as u8]).unwrap();
             uart.write(&adc_count.to_le_bytes()).unwrap();
             uart.write(&[last_adc.map_or(0, |e| 1 + e as u8)]).unwrap();
             uart.write(&winbond_count.to_le_bytes()).unwrap();
-            uart.write(&[last_winbond.map_or(0, |e| 1 + e as u8)]).unwrap();
+            uart.write(&[last_winbond.map_or(0, |e| 1 + e as u8)])
+                .unwrap();
             uart.write(&[0xFFu8]).unwrap();
         });
         Some(FinState::WaitForCommand)

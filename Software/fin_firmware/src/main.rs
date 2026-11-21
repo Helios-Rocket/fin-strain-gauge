@@ -7,7 +7,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use cortex_m::delay;
 use defmt::{error, info, println};
-use embedded_hal::spi::MODE_1;
+use embedded_hal::spi::{MODE_0, MODE_1, Mode};
 use embedded_io::Write;
 use flash::WinbondFlash;
 use hal::flash::Bank;
@@ -67,11 +67,26 @@ make_simple_globals!(
 );
 
 #[cfg(feature = "prototype")]
-type SENSOR_SPI = SPI2;
+type SensorSpi = SPI2;
 #[cfg(not(feature = "prototype"))]
-type SENSOR_SPI = SPI1;
+type SensorSpi = SPI1;
 
-make_globals!((UART, Usart<USART3>), (SPI, Spi<SENSOR_SPI>));
+make_globals!((UART, Usart<USART3>), (SPI, Spi<SensorSpi>));
+
+fn set_spi_mode(new_mode: Mode) {
+    critical_section::with(|cs| {
+        access_global!(SPI, spi, cs);
+        spi.disable().unwrap();
+        spi.regs.cr1().modify(|_, w| {
+            w.cpol()
+                .bit(new_mode.polarity as u8 != 0)
+                .cpha()
+                .bit(new_mode.phase as u8 != 0)
+                .spe()
+                .bit(true)
+        });
+    });
+}
 
 #[cortex_m_rt::entry]
 unsafe fn main() -> ! {
@@ -91,7 +106,21 @@ unsafe fn main() -> ! {
     hal::debug_workaround();
 
     let ahb_freq = clock_cfg.apb1();
-    println!("{}", ahb_freq);
+    // println!("{}", ahb_freq);
+    // cfg_if::cfg_if! {
+    //     if #[cfg(feature = "prototype")] {
+    //         let mut led = Pin::new(Port::B, 5, PinMode::Output);
+    //     } else {
+    //         let mut led = Pin::new(Port::A, 8, PinMode::Output);
+    //     }
+    // }
+    // led.set_high();
+
+    // loop {
+    //     delay_ms(500, ahb_freq);
+    //     info!("Toggle");
+    //     led.toggle();
+    // }
 
     // Setup SPI
     // CS for ADC, figure out how to handle
@@ -177,7 +206,7 @@ unsafe fn main() -> ! {
     println!("Timer Start: {}", timer_start.as_nanos());
 
     // let (mut handler, mut state) =
-        // StateHandler::new(adc, flash, internal_flash, timer, timer_start, pb10, pb11);
+    // StateHandler::new(adc, flash, internal_flash, timer, timer_start, pb10, pb11);
 
     //========= Old Flash stuff =========================
     // Check if block bad
@@ -201,12 +230,61 @@ unsafe fn main() -> ! {
     }
     led.set_high();
 
+    let mut write_data = [0u8; 2048];
+    for i in 0..write_data.len() {
+        write_data[i] = i as u8;
+    }
+
+    // let last_page = 131070u32;
+    let last_page = 127u32;
+
+    // for i in 0..2048 {
+    //     if flash.is_block_bad(i) {
+    //         error!("Bad block: {}", i);
+    //     }
+    // }
+
+    info!("Done checking bad blocks");
+
+    match flash.erase_block(last_page) {
+        Ok(_) => (),
+        Err(_) => error!("Failed to erase flash"),
+    }
+    match flash.write_page(write_data, last_page) {
+        Ok(_) => (),
+        Err(_) => error!("Failed to write to flash"),
+    }
+
     loop {
-        println!("ADXL 2"); 
-        adxl2.read_status_register();
-        println!("ADXL 1"); 
-        adxl1.read_status_register();
-        // info!("{:?}", adc.read_adc_data().unwrap());
+        info!("ADC data: {:?}", adc.read_adc_data().unwrap());
+
+        set_spi_mode(MODE_0);
+
+        #[cfg(not(feature = "prototype"))]
+        {
+            info!("ADXL 1: 0x{:x}", adxl1.read_register(0x0));
+            info!("ADXL 2: 0x{:x}", adxl2.read_register(0x0));
+        }
+
+        set_spi_mode(MODE_1);
+
+        let flash_id = flash.get_id();
+        info!("Flash ID: {:x}, {:x}", flash_id[0], flash_id[1]);
+        info!(
+            "Flash status: {:08b} {:08b} {:08b}",
+            flash.read_status_register(WinbondStatusReg::One),
+            flash.read_status_register(WinbondStatusReg::Two),
+            flash.read_status_register(WinbondStatusReg::Three)
+        );
+
+        let read_data = flash.read_page(last_page);
+        if read_data != write_data {
+            error!("Bad data in page: {:x}", read_data);
+        } else {
+            info!("Flash read successful");
+        }
+
+        led.toggle();
         delay_ms(500, ahb_freq);
 
         // while !uart_regs.isr().read().rxne().bit_is_set(){}
